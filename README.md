@@ -2,6 +2,10 @@
 
 RISC-V RV32I CPU core 
 
+![微架构](https://github.com/Chandler-STAR/RISCV_CPU/blob/main/doc/img/%E5%BE%AE%E6%9E%B6%E6%9E%84.png)
+
+![微架构1](https://github.com/Chandler-STAR/RISCV_CPU/blob/main/doc/img/%E5%BE%AE%E6%9E%B6%E6%9E%841.png)
+
 ## TODO
 
 &#x26a0;&#xfe0f; bugfixing
@@ -33,6 +37,12 @@ RISC-V RV32I CPU core
 | mem_wb_reg.v   |           |
 | forward_unit.v |           |
 | hazard_unit.v  |           |
+
+## Reference
+
+[RISC-V Reference](https://www.cs.sfu.ca/~ashriram/Courses/CS295/assets/notebooks/RISCV/RISCV_CARD.pdf)
+
+
 
 
 
