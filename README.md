@@ -23,7 +23,7 @@ RISC-V RV32I CPU core
 | -------------- | --------- |
 | defines.vh     | &#x1f504; |
 | riscv_top.v    |           |
-| pc_reg.v       |           |
+| pc_reg.v       | &#x2705;  |
 | imem.v         |           |
 | if_id_reg.v    |           |
 | regfile.v      |           |
