@@ -31,4 +31,7 @@
 `define MEM_HALF 2'd1  // 半字（16位）
 `define MEM_WORD 2'd2  // 字（32位）
 
+//常用指令
+`define INST_NOP 32'h00000013
+
 `endif
