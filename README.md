@@ -19,24 +19,24 @@ RISC-V RV32I CPU core
 >
 >| defines.vh     | &#x1f504; |
 
-| Module         | State     | Remark |
-| -------------- | --------- | ------ |
-| defines.vh     | &#x1f504; |        |
-| riscv_top.v    | &#x1f504; |未编写tb|
-| pc_reg.v       | &#x2705;  |        |
-| imem.v         | &#x1f504; | 待测试 |
-| if_id_reg.v    |           |        |
-| regfile.v      |           |        |
-| imm_gen.v      |           |        |
-| branch_comp.v  |           |        |
-| ctrl.v         |           |        |
-| id_ex_reg.v    |           |        |
-| alu.v          |           |        |
-| ex_mem_reg.v   |           |        |
-| dmem.v         |           |        |
-| mem_wb_reg.v   |           |        |
-| forward_unit.v |           |        |
-| hazard_unit.v  |           |        |
+| Module         | State     | Remark   |
+| -------------- | --------- | -------- |
+| defines.vh     | &#x1f504; |          |
+| riscv_top.v    | &#x1f504; | 未编写tb |
+| pc_reg.v       | &#x2705;  |          |
+| imem.v         | &#x2705;  |          |
+| if_id_reg.v    | &#x1f504; | 未编写tb |
+| regfile.v      | &#x2705;  |          |
+| imm_gen.v      | &#x1f504; | 未编写tb |
+| branch_comp.v  | &#x1f504; | 未编写tb |
+| ctrl.v         | &#x1f504; | 未编写tb |
+| id_ex_reg.v    |           |          |
+| alu.v          |           |          |
+| ex_mem_reg.v   |           |          |
+| dmem.v         |           |          |
+| mem_wb_reg.v   |           |          |
+| forward_unit.v |           |          |
+| hazard_unit.v  |           |          |
 
 ## Reference
 
