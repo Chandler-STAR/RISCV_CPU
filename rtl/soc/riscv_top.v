@@ -6,7 +6,7 @@ module riscv_top (
 );
     
 endmodule
-//──────────────────────────────────导线定义─────────────────────────────
+//==========================================导线定义================================
 //       先定义一堆导线
 //       没有前缀的：pc_reg输出以及imem的输出
 //       d_前缀：if_id_reg   模块输出
@@ -16,7 +16,7 @@ endmodule
 //  名称与模块输出一样，比如pc_reg模块输出pc和pc4，
 //  那么定义wire pc和pc4，imem模块输出instr_if，那么定义wire instr_if,用于连接前后级
 //  模块例化，先写输入再写输出
-//─────────────────────────────────────────
+
 
 
 //冒险信号
@@ -67,11 +67,11 @@ wire [1:0]  mem_width_d;
 wire [3:0]  alu_op_d;
 
 //id_ex_reg模块输出
-wire [31:0] e_pc, 
-wire [31:0] e_pc4, 
+wire [31:0] e_pc;
+wire [31:0] e_pc4;
 wire [31:0] e_instr;
-wire [31:0] e_rs1, 
-wire [31:0] e_rs2,
+wire [31:0] e_rs1; 
+wire [31:0] e_rs2;
 wire [31:0] e_imm;
 wire [4:0]  e_rd_addr;
 wire        e_branch_taken;
@@ -91,32 +91,105 @@ wire [31:0] alu_a_final;   // 前递 MUX A 后（含 pc 替换）
 wire [31:0] alu_a_fwd;     // 纯前递 MUX A 输出（rs1 方向）
 wire [31:0] alu_b_rs2;     // 前递 MUX B 输出（rs2 方向，未过 alu_src）
 wire [31:0] alu_b;         // alu_src MUX 最终输出
-wire [31:0] alu_out;       // ALU 结果，兼分支目标地址
-wire        zero;
+wire [31:0] alu_out;       // ALU 结果，也是分支目标地址
+wire        zero;          //alu输出是否为0，分支比较结果,辅助调试用
 wire [31:0] pc_branch;     // 实际跳转目标（JALR 清 bit0）
 
-//──────────────────────────────────导线定义─────────────────────────────
+//ex_mem_reg模块
+wire [31:0] m_pc4;    // 访存阶段pc+4
+wire [31:0] m_instr;  // 访存阶段指令
+wire [31:0] m_alu_out; // ALU结果
+wire [31:0] m_rs2;    // rs2值
+wire [4:0]  m_rd_addr;// 访存阶段目的寄存器地址
+wire        m_reg_we;// 访存阶段寄存器写使能
+wire        m_mem_we;// 访存阶段数据写使能
+wire        m_mem_re;// 访存阶段数据读使能
+wire        m_mem_sign;// 访存阶段数据符号扩展控制
+wire [1:0]  m_wb_sel;  // 访存阶段写回选择
+wire [1:0]  m_mem_width; // 访存阶段数据宽度
+
+//mem模块
+wire [31:0] mem_rdata;      //dmem输出
+
+//mem_wb_reg模块
+wire [31:0] w_pc4;      // 写回阶段pc+4
+wire [31:0] w_instr;    // 写回阶段指令
+wire [31:0] w_alu_out;  // 写回阶段ALU结果
+wire [31:0] w_mem_rdata; // 写回阶段访存数据
+wire [4:0]  w_rd_addr;  // 写回阶段目的寄存器地址
+wire        w_reg_we;// 写回阶段寄存器写使能
+wire [1:0]  w_wb_sel;// 写回阶段写回选择
+
+//wb模块 
+wire [31:0] wd;  // WB MUX 输出，写回 regfile
+
+//==========================================导线定义================================
 
 
 
 
 
-//顶层组合逻辑
-//─────────────────────字段提取─────────────────────
+//==========================================顶层组合逻辑================================
+//─────────────────────字段提取─────────────────────────────
 assign rs1_addr  = d_instr[19:15];
 assign rs2_addr  = d_instr[24:20];
 assign rd_addr_d = d_instr[11:7];
 assign funct3_d  = d_instr[14:12];
-//─────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────
 
-//──────────────BranchComp 前递 MUX ────────────
+//──────────────────────BranchComp 前递 MUX ─────────────────────────────
 assign rs1_bc = fwd_br_a ? m_alu_out : rs1_rf;
 assign rs2_bc = fwd_br_b ? m_alu_out : rs2_rf;
-//─────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────────────
+
+
+//──────────────────ALU 前递 MUX A（3选1：寄存器值、访存阶段前递、写回阶段前递）────────────────────
+assign alu_a_fwd = (fwd_a == `FWD_M) ? m_alu_out :
+                   (fwd_a == `FWD_W) ? wd         : e_rs1;
+//─────────────────────────────────────────────────────────────────────────────────────────
+
+
+// ───────────────── ALU前递 MUX B（3选1：寄存器值、访存阶段前递、写回阶段前递）──────────────
+assign alu_b_rs2 = (fwd_b == `FWD_M) ? m_alu_out :
+                   (fwd_b == `FWD_W) ? wd         : e_rs2;
+//──────────────────────────────────────────────────────────────────────────────────────────
+
+
+// ─────────────────────── ALU操作数a MUX(2选1：alu前递值a、pc值（JAL指令）)──────────────────
+wire use_pc = (e_alu_op == `ALU_AUIPC) ||       
+              e_branch                 ||
+              (e_instr[6:0] == 7'b110_1111); // AUIPC、JAL等需要将alu_a_final设为pc以计算跳转目标地址
+assign alu_a_final = use_pc ? e_pc : alu_a_fwd;
+//──────────────────────────────────────────────────────────────────────────────────────────
 
 
 
-//模块例化
+// ─────────────────────────── ALU操作数b MUX(2选1：alu前递值b、立即数)──────────────────────
+assign alu_b = e_alu_src ? e_imm : alu_b_rs2;
+//───────────────────────────────────────────────────────────────────────────────────────
+
+
+
+// ─────────────────────────── PC MUX（JALR 目标地址 bit[0] 必须清零）──────────────────────
+assign pc_branch = (e_instr[6:0] == 7'b110_0111) ?
+                   {alu_out[31:1], 1'b0} : alu_out;     //判断是不是JALR，如果是，pc_branch的值为alu_out但最低位强制为0，否则pc_branch就是alu_out（分支目标地址）
+
+assign pc_sel    = (e_branch & e_branch_taken) | e_jump;    //是否需要跳转
+assign pc_next   = pc_sel ? pc_branch : pc4;
+//───────────────────────────────────────────────────────────────────────────────────────
+
+
+
+// ─────────────────────────────────────── WB MUX（3选1：ALU结果、访存数据、PC+4） ───────────────────────────────────────
+assign wd = (w_wb_sel == `WB_ALU) ? w_alu_out  :
+            (w_wb_sel == `WB_MEM) ? w_mem_rdata : w_pc4;
+//───────────────────────────────────────────────────────────────────────────────────────
+//==========================================顶层组合逻辑================================
+
+
+
+
+//========================================模块例化================================
 pc_reg u_pc_reg(
     .clk(clk),
     .rst(rst),
@@ -137,11 +210,16 @@ if_id_reg u_if_id_reg(
     .pc_in(pc),
     .pc4_in(pc4),
     .instr_in(instr_if),
-    .d_instr(d_instr)，
+    .d_instr(d_instr),
     .stall(stall),
     .flush(flush),
     .d_pc(d_pc),
     .d_pc4(d_pc4)
+);
+
+imm_gen u_imm_gen(
+    .d_instr(d_instr),
+    .imm(imm)
 );
 
 regfile u_regfile(
@@ -171,7 +249,7 @@ ctrl u_ctrl(
     .jump_d(jump_d),     
     .alu_src_d(alu_src_d),
     .wb_sel_d(wb_sel_d),   
-    .alu_op(alu_op_d),
+    .alu_op_d(alu_op_d),
     .mem_width_d(mem_width_d),
     .mem_sign_d(mem_sign_d)
 );
@@ -226,6 +304,84 @@ alu u_alu(
     .zero(zero)
 );
 
+ex_mem_reg u_ex_mem_reg(
+    .clk(clk),
+    .rst(rst),
+    .pc4_in(e_pc4),
+    .instr_in(e_instr),
+    .alu_out_in(alu_out),
+    .rs2_in(alu_b_rs2),
+    .rd_addr_in(e_rd_addr),
+    .reg_we_in(e_reg_we),
+    .mem_we_in(e_mem_we),
+    .mem_re_in(e_mem_re),
+    .mem_sign_in(e_mem_sign),
+    .wb_sel_in(e_wb_sel),
+    .mem_width_in(e_mem_width),
+    .m_pc4(m_pc4),
+    .m_instr(m_instr),
+    .m_alu_out(m_alu_out),
+    .m_rs2(m_rs2),
+    .m_rd_addr(m_rd_addr),
+    .m_reg_we(m_reg_we),
+    .m_mem_we(m_mem_we),
+    .m_mem_re(m_mem_re),
+    .m_mem_sign(m_mem_sign),
+    .m_wb_sel(m_wb_sel),
+    .m_mem_width(m_mem_width)
+);
 
+dmem u_dmem(
+    .clk(clk),
+    .alu_out(m_alu_out),
+    .rs2(m_rs2),
+    .mem_we(m_mem_we),
+    .mem_re(m_mem_re),
+    .mem_sign(m_mem_sign),
+    .mem_width(m_mem_width),
+    .mem_rdata(mem_rdata)
+);
 
+mem_wb_reg u_mem_wb_reg(
+    .clk(clk),
+    .rst(rst),
+    .pc4_in(m_pc4),
+    .instr_in(m_instr),
+    .alu_out_in(m_alu_out),
+    .mem_rdata_in(mem_rdata),
+    .rd_addr_in(m_rd_addr),
+    .reg_we_in(m_reg_we),
+    .wb_sel_in(m_wb_sel),
+    .w_pc4(w_pc4),
+    .w_instr(w_instr),
+    .w_alu_out(w_alu_out),
+    .w_mem_rdata(w_mem_rdata),
+    .w_rd_addr(w_rd_addr),
+    .w_reg_we(w_reg_we),
+    .w_wb_sel(w_wb_sel)
+);
+
+forward u_forward(
+    .instr_ex(e_instr),    
+    .instr_mem(m_instr),
+    .reg_we_mem(m_reg_we),   
+    .mem_re_mem(m_mem_re),
+    .instr_wb(w_instr),    
+    .reg_we_wb(w_reg_we),
+    .instr_id(d_instr),
+    .fwd_a(fwd_a),      
+    .fwd_b(fwd_b),
+    .fwd_br_a(fwd_br_a),   
+    .fwd_br_b(fwd_br_b)
+);
+
+hazard u_hazard(
+    .instr_id(d_instr),   
+    .instr_ex(e_instr),
+    .mem_re_ex(e_mem_re),  
+    .pc_sel(pc_sel),
+    .stall(stall),     
+    .flush(flush)
+);
+//========================================模块例化================================
 
