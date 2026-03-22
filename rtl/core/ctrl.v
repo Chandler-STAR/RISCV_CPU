@@ -1,4 +1,4 @@
-`include "defines.vh"
+`include "../include/defines.vh"
 
 module ctrl (
     input [31:0] d_instr,
