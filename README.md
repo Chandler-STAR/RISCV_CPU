@@ -30,8 +30,8 @@ RISC-V RV32I CPU core
 | imm_gen.v      | &#x1f504; | 未编写tb |
 | branch_comp.v  | &#x1f504; | 未编写tb |
 | ctrl.v         | &#x1f504; | 未编写tb |
-| id_ex_reg.v    |           |          |
-| alu.v          |           |          |
+| id_ex_reg.v    | &#x1f504; | 未编写tb |
+| alu.v          | &#x1f504; | 未编写tb |
 | ex_mem_reg.v   |           |          |
 | dmem.v         |           |          |
 | mem_wb_reg.v   |           |          |

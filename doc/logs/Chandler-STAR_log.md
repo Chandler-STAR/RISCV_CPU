@@ -27,3 +27,5 @@
 * zero 信号未使用：ALU 输出 zero 仅作调试用途，后续可酌情清理或加 lint 抑制注释。
 
 编写id_ex_reg.v,确认无 stall 端口为设计意图——load-use 冒险时该级插入气泡（flush），而非保持，与 hazard 模块配合逻辑自洽。模块实现无误。
+
+完成alu.v的编写，未编写tb
