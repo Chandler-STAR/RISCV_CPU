@@ -16,12 +16,21 @@ module if_id_reg (
     output reg [31:0] d_instr
 );
 
+  //优先相应rst，其次是flush，再次是stall，最后正常更新寄存器
   always @(posedge clk) begin
-    if (rst || flush) begin
+    if (rst) begin
       d_pc <= 0;
       d_pc4 <= 0;
       d_instr <= `INST_NOP;
-    end else if (!stall) begin
+    end else if (stall) begin
+      d_pc <= d_pc;
+      d_pc4 <= d_pc4;
+      d_instr <= d_instr;
+    end else if (flush) begin
+      d_pc <= 0;
+      d_pc4 <= 0;
+      d_instr <= `INST_NOP;
+    end else begin
       d_pc <= pc_in;
       d_pc4 <= pc4_in;
       d_instr <= instr_in;
