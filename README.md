@@ -23,8 +23,8 @@ RISC-V RV32I CPU core
 | -------------- | --------- | -------- |
 | defines.vh     | &#x1f504; |          |
 | riscv_top.v    | &#x1f504; | 未编写tb |
-| pc_reg.v       | &#x2705;  |          |
-| imem.v         | &#x2705;  |          |
+| pc_reg.v       | &#x2705;  | 已编写tb |
+| imem.v         | &#x2705;  | 已编写tb |
 | if_id_reg.v    | &#x1f504; | 未编写tb |
 | regfile.v      | &#x2705;  |          |
 | imm_gen.v      | &#x1f504; | 未编写tb |
