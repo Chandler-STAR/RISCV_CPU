@@ -1,4 +1,4 @@
-`include "defines.vh"
+`include "../include/defines.vh"
 module id_ex_reg (
     input  wire        clk,
     input  wire        rst,
