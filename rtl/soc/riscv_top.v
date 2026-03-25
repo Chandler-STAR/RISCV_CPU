@@ -1,4 +1,4 @@
-`include "defines.vh"
+`include "../include/defines.vh"
 
 module riscv_top (
     input wire clk,
