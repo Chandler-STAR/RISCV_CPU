@@ -358,7 +358,7 @@ module riscv_top (
       .w_wb_sel(w_wb_sel)
   );
 
-  forward u_forward (
+  forward_unit u_forward (
       .instr_ex(e_instr),
       .instr_mem(m_instr),
       .reg_we_mem(m_reg_we),
@@ -372,7 +372,7 @@ module riscv_top (
       .fwd_br_b(fwd_br_b)
   );
 
-  hazard u_hazard (
+  hazard_unit u_hazard (
       .instr_id(d_instr),
       .instr_ex(e_instr),
       .mem_re_ex(e_mem_re),
