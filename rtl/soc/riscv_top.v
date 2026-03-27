@@ -20,12 +20,13 @@ module riscv_top (
 
 
   //冒险信号
-  wire flush;
+  wire flush_if_id; // 替换原有的 wire flush;
+  wire flush_id_ex;
   wire stall;
 
   // 前递控制
   wire [1:0] fwd_a, fwd_b;
-  wire fwd_br_a, fwd_br_b;
+  wire [1:0] fwd_br_a, fwd_br_b;
 
   //if模块 pc_reg、imem、pc_mux
   wire [31:0] pc;  //pc_reg输出    
@@ -137,10 +138,10 @@ module riscv_top (
   assign funct3_d  = d_instr[14:12];
   //─────────────────────────────────────────────────────────
 
-  //──────────────────────BranchComp 前递 MUX ─────────────────────────────
-  assign rs1_bc    = fwd_br_a ? m_alu_out : rs1_rf;
-  assign rs2_bc    = fwd_br_b ? m_alu_out : rs2_rf;
-  //─────────────────────────────────────────────────────────────────────
+  //──────────────────────BranchComp 前递 MUX ─────────────────────────────────────────
+   assign rs1_bc = (fwd_br_a == 2'b01) ? m_alu_out :  (fwd_br_a == 2'b10) ? wd  : rs1_rf;
+   assign rs2_bc = (fwd_br_b == 2'b01) ? m_alu_out :  (fwd_br_b == 2'b10) ? wd  : rs2_rf;
+  //────────────────────────────────────────────────────────────────────────────────────
 
 
   //──────────────────ALU 前递 MUX A（3选1：寄存器值、访存阶段前递、写回阶段前递）────────────────────
@@ -209,7 +210,7 @@ module riscv_top (
       .instr_in(instr_if),
       .d_instr(d_instr),
       .stall(stall),
-      .flush(flush),
+      .flush_if_id(flush_if_id),
       .d_pc(d_pc),
       .d_pc4(d_pc4)
   );
@@ -254,7 +255,7 @@ module riscv_top (
   id_ex_reg u_id_ex_reg (
       .clk(clk),
       .rst(rst),
-      .flush(flush),
+      .flush_id_ex(flush_id_ex),
       .pc_in(d_pc),
       .pc4_in(d_pc4),
       .instr_in(d_instr),
@@ -376,9 +377,11 @@ module riscv_top (
       .instr_id(d_instr),
       .instr_ex(e_instr),
       .mem_re_ex(e_mem_re),
+      .reg_we_ex(e_reg_we),       // 【新增连线】传入 EX 阶段的写使能
       .pc_sel(pc_sel),
       .stall(stall),
-      .flush(flush)
+      .flush_if_id(flush_if_id),  // 【新增】专门控制 IF/ID 寄存器的清空
+      .flush_id_ex(flush_id_ex)   // 【新增】专门控制 ID/EX 寄存器的清空
   );
   //========================================模块例化================================
 

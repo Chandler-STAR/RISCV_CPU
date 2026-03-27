@@ -10,8 +10,8 @@ module forward_unit (
 
     output reg  [1:0]  fwd_a,
     output reg  [1:0]  fwd_b,
-    output reg         fwd_br_a,
-    output reg         fwd_br_b    
+    output reg  [1:0]  fwd_br_a,    //拓展为两位，支持 EX/MEM 和 MEM/WB 前递到 BranchComp
+    output reg  [1:0]  fwd_br_b    
 );
 
 
@@ -27,40 +27,42 @@ wire [4:0]  rs2_id = instr_id[24:20];
 //ALU A 前递 优先处理EX/MEM冒险
 always @(*) begin
     if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs1_ex) && !mem_re_mem) begin
-        fwd_a = 2'b01;  //FWD_M=01（EX/MEM）
+        fwd_a = `FWD_M;  //FWD_M=01（EX/MEM）
     end else if (reg_we_wb && (rd_wb != 5'd0) && (rd_wb == rs1_ex)) begin
-        fwd_a = 2'b10;  //FWD_W=10（MEM/WB）
+        fwd_a = `FWD_W;  //FWD_W=10（MEM/WB）
     end else begin
-        fwd_a = 2'b00;  //FWD_NONE=00
+        fwd_a = `FWD_NONE;  //FWD_NONE=00
     end
 end
 
 //ALU B 前递 优先处理EX/MEM冒险
 always @(*) begin
     if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs2_ex) && !mem_re_mem) begin
-        fwd_a = 2'b01;  //FWD_M=01（EX/MEM）
+        fwd_b = `FWD_M;  //FWD_M=01（EX/MEM）
     end else if (reg_we_wb && (rd_wb != 5'd0) && (rd_wb == rs2_ex)) begin
-        fwd_a = 2'b10;  //FWD_W=10（MEM/WB）
+        fwd_b = `FWD_W;  //FWD_W=10（MEM/WB）
     end else begin
-        fwd_a = 2'b00;  //FWD_NONE=00
+        fwd_b = `FWD_NONE;  //FWD_NONE=00
     end
 end
 
 //BranchComp rs1 前递  仅支持 EX/MEM→ID
 always @(*) begin
-    if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs1_id) && !mem_re_mem) begin
-        fwd_br_a = 1'b1;
-    end else begin
-        fwd_br_a = 1'b0;
-    end
+    if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs1_id) && !mem_re_mem)
+        fwd_br_a = 2'b01;  // from EX/MEM
+    else if (reg_we_wb && (rd_wb != 5'd0) && (rd_wb == rs1_id))
+        fwd_br_a = 2'b10;  // from MEM/WB
+    else
+        fwd_br_a = 2'b00;
 end
 
 //BranchComp rs2 前递  仅支持 EX/MEM→ID
 always @(*) begin
-    if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs2_id) && !mem_re_mem) begin
-        fwd_br_b = 1'b1;  
-    end else begin
-        fwd_br_b = 1'b0;  
-    end
+    if (reg_we_mem && (rd_mem != 5'd0) && (rd_mem == rs2_id) && !mem_re_mem)
+        fwd_br_b = 2'b01;  // from EX/MEM
+    else if (reg_we_wb && (rd_wb != 5'd0) && (rd_wb == rs2_id))
+        fwd_br_b = 2'b10;  // from MEM/WB
+    else
+        fwd_br_b = 2'b00;
 end
 endmodule

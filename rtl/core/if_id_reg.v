@@ -3,7 +3,7 @@
 module if_id_reg (
     input clk,
     input rst,
-    input flush,
+    input flush_if_id,  // 来自 hazard_unit 的 IF/ID 专用 Flush 信号
     input stall,
     // 来自 pc_reg 的当前 PC 和 PC+4
     input [31:0] pc_in,
@@ -22,14 +22,14 @@ module if_id_reg (
       d_pc <= 0;
       d_pc4 <= 0;
       d_instr <= `INST_NOP;
-    end else if (stall) begin
-      d_pc <= d_pc;
-      d_pc4 <= d_pc4;
-      d_instr <= d_instr;
-    end else if (flush) begin
-      d_pc <= 0;
-      d_pc4 <= 0;
+    end else if (flush_if_id) begin // Flush 应该优先于 Stall
+      d_pc <= 0; 
+      d_pc4 <= 0; 
       d_instr <= `INST_NOP;
+    end else if (stall) begin
+      d_pc <= d_pc; 
+      d_pc4 <= d_pc4; 
+      d_instr <= d_instr;
     end else begin
       d_pc <= pc_in;
       d_pc4 <= pc4_in;
