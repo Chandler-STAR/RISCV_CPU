@@ -17,7 +17,7 @@ module tb_riscv_top ();
 
 
   riscv_top #(
-      .file_path("E:/FPGA/github/RISCV/RISCV_CPU/tests/R_I_test.hex")
+      .file_path("E:/FPGA/github/RISCV/RISCV_CPU/tests/R_I_test_no_hazard.hex")
   ) u_riscv_top (
       .clk(clk),
       .rst(rst)
