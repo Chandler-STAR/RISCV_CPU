@@ -2,14 +2,13 @@
 
 
 module tb_riscv_top ();
-  wire clk;
-  wire rst;
+  reg clk;
+  reg rst;
 
   initial begin
     clk = 0;
     forever #10 clk = ~clk;  // 20ps 一个周期，50MHz 时钟
   end
-
 
   initial begin
     rst = 1;
@@ -18,7 +17,7 @@ module tb_riscv_top ();
 
 
   riscv_top #(
-      .file_path("E:\FPGA\github\RISCV\RISCV_CPU\tests\R_I_test.hex")
+      .file_path("E:/FPGA/github/RISCV/RISCV_CPU/tests/R_I_test.hex")
   ) u_riscv_top (
       .clk(clk),
       .rst(rst)
