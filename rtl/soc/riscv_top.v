@@ -1,6 +1,8 @@
 `include "../include/defines.vh"
 
-module riscv_top (
+module riscv_top #(
+    parameter file_path = "./test.hex"  //用于测试的指令文件路径
+) (
     input wire clk,
     input wire rst
 );
@@ -20,7 +22,7 @@ module riscv_top (
 
 
   //冒险信号
-  wire flush_if_id; // 替换原有的 wire flush;
+  wire flush_if_id;  // 替换原有的 wire flush;
   wire flush_id_ex;
   wire stall;
 
@@ -132,15 +134,15 @@ module riscv_top (
 
   //==========================================顶层组合逻辑================================
   //─────────────────────字段提取─────────────────────────────
-  assign rs1_addr  = d_instr[19:15];
-  assign rs2_addr  = d_instr[24:20];
+  assign rs1_addr = d_instr[19:15];
+  assign rs2_addr = d_instr[24:20];
   assign rd_addr_d = d_instr[11:7];
-  assign funct3_d  = d_instr[14:12];
+  assign funct3_d = d_instr[14:12];
   //─────────────────────────────────────────────────────────
 
   //──────────────────────BranchComp 前递 MUX ─────────────────────────────────────────
-   assign rs1_bc = (fwd_br_a == 2'b01) ? m_alu_out :  (fwd_br_a == 2'b10) ? wd  : rs1_rf;
-   assign rs2_bc = (fwd_br_b == 2'b01) ? m_alu_out :  (fwd_br_b == 2'b10) ? wd  : rs2_rf;
+  assign rs1_bc = (fwd_br_a == 2'b01) ? m_alu_out : (fwd_br_a == 2'b10) ? wd : rs1_rf;
+  assign rs2_bc = (fwd_br_b == 2'b01) ? m_alu_out : (fwd_br_b == 2'b10) ? wd : rs2_rf;
   //────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -197,7 +199,9 @@ module riscv_top (
       .pc4(pc4)
   );
 
-  imem u_imem (
+  imem #(
+      .file_path(file_path)  // 将参数传递给 imem 模块
+  ) u_imem (
       .pc(pc),
       .instr_if(instr_if)
   );
@@ -374,12 +378,12 @@ module riscv_top (
   );
 
   hazard_unit u_hazard (
-      .instr_id(d_instr),
-      .instr_ex(e_instr),
-      .mem_re_ex(e_mem_re),
-      .reg_we_ex(e_reg_we),       // 【新增连线】传入 EX 阶段的写使能
-      .pc_sel(pc_sel),
-      .stall(stall),
+      .instr_id   (d_instr),
+      .instr_ex   (e_instr),
+      .mem_re_ex  (e_mem_re),
+      .reg_we_ex  (e_reg_we),     // 【新增连线】传入 EX 阶段的写使能
+      .pc_sel     (pc_sel),
+      .stall      (stall),
       .flush_if_id(flush_if_id),  // 【新增】专门控制 IF/ID 寄存器的清空
       .flush_id_ex(flush_id_ex)   // 【新增】专门控制 ID/EX 寄存器的清空
   );
