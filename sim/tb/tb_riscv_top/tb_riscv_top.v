@@ -17,7 +17,7 @@ module tb_riscv_top ();
 
 
   riscv_top #(
-      .file_path("F:/RISCV_CPU/tests/R_I_test.hex")   //本地测试时需要更改路径
+      .file_path("F:/RISCV_CPU/tests/R_I_test_forward.hex")   //本地测试时需要更改路径
   ) u_riscv_top (
       .clk(clk),
       .rst(rst)
