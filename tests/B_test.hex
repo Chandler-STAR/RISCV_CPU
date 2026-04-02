@@ -1,0 +1,78 @@
+00a00093
+01400113
+fff00193
+00a00213
+00408463
+0000006f
+00209463
+ff9ff06f
+0011c463
+ff1ff06f
+0030d463
+fe9ff06f
+0030e463
+fe1ff06f
+0011f463
+fd9ff06f
+00000293
+00128293
+00500313
+fe62cce3
+00000063
+
+
+# 初始化寄存器
+    addi x1, x0, 10      # x1 = 10
+    addi x2, x0, 20      # x2 = 20
+    addi x3, x0, -1      # x3 = -1 (补码为 0xFFFFFFFF)
+    addi x4, x0, 10      # x4 = 10
+
+# 1. 测试 BEQ (Branch if Equal)
+test_beq:
+    beq x1, x4, pass_beq # 10 == 10, 应该跳转
+    fail_loop: j fail_loop # 如果没跳，进入死循环表示失败
+
+pass_beq:
+# 2. 测试 BNE (Branch if Not Equal)
+test_bne:
+    bne x1, x2, pass_bne # 10 != 20, 应该跳转
+    j fail_loop
+
+pass_bne:
+# 3. 测试 BLT (Branch if Less Than, 有符号)
+test_blt:
+    blt x3, x1, pass_blt # -1 < 10, 应该跳转
+    j fail_loop
+
+pass_blt:
+# 4. 测试 BGE (Branch if Greater or Equal, 有符号)
+test_bge:
+    bge x1, x3, pass_bge # 10 >= -1, 应该跳转
+    j fail_loop
+
+pass_bge:
+# 5. 测试 BLTU (Branch if Less Than, 无符号)
+test_bltu:
+    # 在无符号下，x3 (0xFFFFFFFF) 是一个巨大的正数
+    bltu x1, x3, pass_bltu # 10 < 0xFFFFFFFF, 应该跳转
+    j fail_loop
+
+pass_bltu:
+# 6. 测试 BGEU (Branch if Greater or Equal, 无符号)
+test_bgeu:
+    bgeu x3, x1, pass_bgeu # 0xFFFFFFFF >= 10, 应该跳转
+    j fail_loop
+
+pass_bgeu:
+# 7. 测试 负向跳转 (Backward Branch)
+# 验证硬件是否能正确处理补码形式的跳转偏移量
+    addi x5, x0, 0
+loop_test:
+    addi x5, x5, 1
+    addi x6, x0, 5
+    blt x5, x6, loop_test # 如果 x5 < 5，跳回到 loop_test
+
+# 全部通过
+success:
+    beq x0, x0, success  # 最终停在这里
+    
