@@ -21,12 +21,13 @@ module hazard_unit (
 
   // 2. 分支数据冒险检测（Branch Data Hazard）
   // 如果 ID 阶段是分支/跳转指令，且它依赖的寄存器正被 EX 阶段计算，必须 Stall
-  wire is_branch_id = (instr_id[6:0] == 7'b110_0011) |  // B-type
-  (instr_id[6:0] == 7'b110_0111) |  // JALR
-  (instr_id[6:0] == 7'b110_1111);  // JAL
+  //wire is_J = (instr_id[6:0] == 7'b110_1111) | (instr_id[6:0] == 7'b110_0111);  // JAL|JALR
+  wire is_JAL = instr_id[6:0] == 7'b110_1111;  // JAL
+  wire is_JALR = instr_id[6:0] == 7'b110_0111;  // JALR
+  wire is_branch_id = (instr_id[6:0] == 7'b110_0011) | is_JAL | is_JALR;  // BEQ|BNE|BLT|BGE|BLTU|BGEU|JAL|JALR
 
   wire branch_hazard = is_branch_id && reg_we_ex && (rd_ex != 5'd0) && 
-                         ((rd_ex == rs1_id) || (rd_ex == rs2_id));
+                         ((((rd_ex == rs1_id) || (rd_ex == rs2_id)) && !(is_JAL|is_JALR))|((rd_ex == rs1_id)&&is_JALR));  // JALR 仅依赖 rs1
 
   // 综合 Stall 和 Flush 信号
   assign stall = load_use | branch_hazard;
