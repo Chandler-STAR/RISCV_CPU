@@ -1,24 +1,24 @@
 `include "../include/defines.vh"
- 
+
 
 module myCPU (
-    input  wire         cpu_rst,
-    input  wire         cpu_clk,
-    
+    input wire cpu_rst,
+    input wire cpu_clk,
+
     // Interface to IROM (替换原来的 imem)
-    output wire [31:0]  irom_addr,
-    input  wire [31:0]  irom_data,
+    output wire [31:0] irom_addr,
+    input  wire [31:0] irom_data,
 
     // Interface to DRAM & Peripherals (替换原来的 dmem)
-    output wire [31:0]  perip_addr,
-    output wire         perip_wen,
-    output wire [ 1:0]  perip_mask,
-    output wire [31:0]  perip_wdata,
-    input  wire [31:0]  perip_rdata
+    output wire [31:0] perip_addr,
+    output wire        perip_wen,
+    output wire [ 1:0] perip_mask,
+    output wire [31:0] perip_wdata,
+    input  wire [31:0] perip_rdata
 );
 
-    wire clk = cpu_clk;
-    wire rst = cpu_rst;
+  wire clk = cpu_clk;
+  wire rst = cpu_rst;
 
   //==========================================导线定义================================
   //       先定义一堆导线
@@ -47,7 +47,7 @@ module myCPU (
   wire [31:0] pc4;  //pc_reg输出
   wire [31:0] pc_next;  //pc_mux输出
   wire        pc_sel;  //分支/跳转触发,pc_mux选择信号
-  wire [31:0] instr_if;  //imem输出
+  //wire [31:0] instr_if;  //imem输出
 
 
 
@@ -124,7 +124,7 @@ module myCPU (
   wire [ 1:0] m_mem_width;  // 访存阶段数据宽度
 
   //mem模块
-  wire [31:0] mem_rdata;  //dmem输出
+  // wire [31:0] mem_rdata;  //dmem输出
 
   //mem_wb_reg模块
   wire [31:0] w_pc4;  // 写回阶段pc+4
@@ -142,24 +142,24 @@ module myCPU (
 
 
   // ─────────────────────── 指令总线连接 ───────────────────────────
-    assign irom_addr = pc;            // 将 PC 丢给外部指令存储器
-    wire [31:0] instr_if = irom_data; // 从外部取回指令
+  assign irom_addr = pc;  // 将 PC 丢给外部指令存储器
+  wire [31:0] instr_if = irom_data;  // 从外部取回指令
   //─────────────────────────────────────────────────────────
 
   // ─────────────────────── 数据总线连接 ───────────────────────────
-    assign perip_addr  = m_alu_out;    // 访存地址
-    assign perip_wen   = m_mem_we;     // 写使能
-    assign perip_mask  = m_mem_width;  // 访存宽度 (00:byte, 01:half, 10:word)
-    assign perip_wdata = m_rs2;        // 准备写入的数据
+  assign perip_addr  = m_alu_out;  // 访存地址
+  assign perip_wen   = m_mem_we;  // 写使能
+  assign perip_mask  = m_mem_width;  // 访存宽度 (00:byte, 01:half, 10:word)
+  assign perip_wdata = m_rs2;  // 准备写入的数据
 
-    // 处理读出数据的符号扩展（替代你原有的 dmem 读逻辑）
-    wire [31:0] mem_rdata;
-    assign mem_rdata = m_mem_re ? (
+  // 处理读出数据的符号扩展（替代你原有的 dmem 读逻辑）
+  wire [31:0] mem_rdata;
+  assign mem_rdata = m_mem_re ? (
         (m_mem_width == `MEM_BYTE) ? (m_mem_sign ? {{24{perip_rdata[7]}}, perip_rdata[7:0]} : perip_rdata) :
         (m_mem_width == `MEM_HALF) ? (m_mem_sign ? {{16{perip_rdata[15]}}, perip_rdata[15:0]} : perip_rdata) :
         perip_rdata
     ) : 32'h0;
-    //─────────────────────────────────────────────────────────
+  //─────────────────────────────────────────────────────────
 
   //==========================================顶层组合逻辑================================
   //─────────────────────字段提取─────────────────────────────
@@ -362,7 +362,7 @@ module myCPU (
       .m_mem_width(m_mem_width)
   );
 
- /* dmem u_dmem (
+  /* dmem u_dmem (
       .clk(clk),
       .alu_out(m_alu_out),
       .rs2(m_rs2),

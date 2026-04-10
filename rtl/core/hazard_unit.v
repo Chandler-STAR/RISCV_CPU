@@ -6,7 +6,7 @@ module hazard_unit (
     input  wire        mem_re_ex,    // EX 级 Load 标志
     input  wire        pc_sel,       // 分支/跳转决策（顶层）
     output wire        stall,        // =1: PC 和 IF/ID 保持
-    output wire        flush,        // =1: ID/EX 清零
+    //output wire        flush,        // =1: ID/EX 清零
     output wire        flush_if_id,  // 【新增】专给 IF/ID 的清空信号
     output wire        flush_id_ex,  // 【新增】专给 ID/EX 的清空信号
     input  wire        reg_we_ex     // 【新增】EX 级寄存器写使能（用于分支冒险）
