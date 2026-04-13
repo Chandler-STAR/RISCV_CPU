@@ -147,7 +147,13 @@ module myCPU (
   //─────────────────────────────────────────────────────────
 
   // ─────────────────────── 数据总线连接 ───────────────────────────
-  assign perip_addr  = m_alu_out + 32'h8000_0000;  // 访存地址
+  //assign perip_addr = (m_alu_out < 32'h8000_0000)?m_alu_out + 32'h8000_0000:m_alu_out;  // 访存地址
+  assign perip_addr  = m_alu_out;  // 访存地址
+  //   always @(*) begin
+  //     if (m_alu_out < 32'h8000_0000) begin
+  //       perip_addr <= m_alu_out + 32'h8000_0000;
+  //     end else perip_addr <= m_alu_out;
+  //   end
   assign perip_wen   = m_mem_we;  // 写使能
   assign perip_mask  = m_mem_width;  // 访存宽度 (00:byte, 01:half, 10:word)
   assign perip_wdata = m_rs2;  // 准备写入的数据

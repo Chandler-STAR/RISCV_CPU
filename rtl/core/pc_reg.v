@@ -14,7 +14,7 @@ module pc_reg (
 
   always @(posedge clk) begin
     if (rst) begin
-      pc <= 0;
+      pc <= 32'h8000_0000;  // 复位时 PC 初始化为 0x8000_0000
     end else if (!stall) begin
       pc <= pc_next;
     end
