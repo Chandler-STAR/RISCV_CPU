@@ -56,7 +56,7 @@ module hazard_unit (
   // 1. 字段提取
   wire [4:0] rs1_id = instr_id[19:15];
   wire [4:0] rs2_id = instr_id[24:20];
-  wire [4:0] rd_ex  = instr_ex[11:7];
+  wire [4:0] rd_ex = instr_ex[11:7];
 
   // 2. Load-Use 冒险检测
   // 如果 EX 阶段是 Load 指令，且其目的寄存器 rd 是 ID 阶段指令的源寄存器

@@ -15,7 +15,7 @@ module imm_gen (
       7'b0110111, 7'b0010111: imm = {d_instr[31:12], 12'b0};  // U-type
       7'b1101111:
       imm = {{12{d_instr[31]}}, d_instr[19:12], d_instr[20], d_instr[30:21], 1'b0};  // J-type
-      default: imm = 32'b0; 
+      default: imm = 32'b0;
     endcase
   end
 

@@ -22,13 +22,13 @@ module if_id_reg (
       d_pc <= 0;
       d_pc4 <= 0;
       d_instr <= `INST_NOP;
-    end else if (flush_if_id) begin // Flush 应该优先于 Stall
-      d_pc <= 0; 
-      d_pc4 <= 0; 
+    end else if (flush_if_id) begin  // Flush 应该优先于 Stall
+      d_pc <= 0;
+      d_pc4 <= 0;
       d_instr <= `INST_NOP;
     end else if (stall) begin
-      d_pc <= d_pc; 
-      d_pc4 <= d_pc4; 
+      d_pc <= d_pc;
+      d_pc4 <= d_pc4;
       d_instr <= d_instr;
     end else begin
       d_pc <= pc_in;
