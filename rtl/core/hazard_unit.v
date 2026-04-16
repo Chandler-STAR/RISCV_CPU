@@ -1,4 +1,4 @@
-`include "../include/defines.vh"
+/* `include "../include/defines.vh"
 
 module hazard_unit (
     input  wire [31:0] instr_id,     // ID 级指令
@@ -37,5 +37,48 @@ module hazard_unit (
 
   // 发生 Load-Use/Branch 冒险需要插入气泡，或者发生跳转时，清空 ID/EX 寄存器
   assign flush_id_ex = load_use | branch_hazard | pc_sel;
+
+endmodule
+ */
+
+`include "../include/defines.vh"
+
+module hazard_unit (
+    input  wire [31:0] instr_id,     // ID 级指令
+    input  wire [31:0] instr_ex,     // EX 级指令
+    input  wire        mem_re_ex,    // EX 级 Load 标志（mem_read_enable）
+    input  wire        pc_sel,       // 来自 EX 阶段的最终跳转决策信号
+    output wire        stall,        // =1: 冻结 PC 和 IF/ID 寄存器
+    output wire        flush_if_id,  // =1: 清空 IF/ID 寄存器
+    output wire        flush_id_ex,  // =1: 清空 ID/EX 寄存器
+    input  wire        reg_we_ex     // EX 级写使能
+);
+  // 1. 字段提取
+  wire [4:0] rs1_id = instr_id[19:15];
+  wire [4:0] rs2_id = instr_id[24:20];
+  wire [4:0] rd_ex  = instr_ex[11:7];
+
+  // 2. Load-Use 冒险检测
+  // 如果 EX 阶段是 Load 指令，且其目的寄存器 rd 是 ID 阶段指令的源寄存器
+  // 这是唯一需要 Stall（暂停）的情况。
+  wire load_use = mem_re_ex && (rd_ex != 5'd0) && ((rd_ex == rs1_id) || (rd_ex == rs2_id));
+
+  // 3. 分支数据冒险（注意！）
+  // 由于 branch_comp 移到了 EX 阶段，它可以直接利用 EX 阶段的前递逻辑
+  // 就像 ADD 指令一样。因此，不再需要专门的 branch_hazard 暂停逻辑。
+  // 分支指令会在进入 EX 阶段时，通过前递拿到最新的 rs1 和 rs2 值进行比较。
+
+  // --- 信号综合 ---
+
+  // 只有 Load-Use 冲突时需要暂停
+  assign stall = load_use;
+
+  // 当 EX 阶段决定跳转时（pc_sel=1），冲刷掉已经进入流水线的后两条错误指令
+  assign flush_if_id = pc_sel;
+
+  // ID/EX 寄存器在两种情况下需要清零（插入气泡）：
+  // 1. 发生 Load-Use 冲突，需要停一拍。
+  // 2. 发生跳转，需要冲刷掉 ID 段的指令。
+  assign flush_id_ex = load_use | pc_sel;
 
 endmodule
