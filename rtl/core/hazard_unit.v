@@ -61,7 +61,8 @@ module hazard_unit (
   // 2. Load-Use 冒险检测
   // 如果 EX 阶段是 Load 指令，且其目的寄存器 rd 是 ID 阶段指令的源寄存器
   // 这是唯一需要 Stall（暂停）的情况。
-  wire load_use = mem_re_ex && (rd_ex != 5'd0) && ((rd_ex == rs1_id) || (rd_ex == rs2_id));
+  wire load_use = mem_re_ex && (rd_ex != 5'd0) 
+                  && ((rd_ex == rs1_id) || (rd_ex == rs2_id));
 
   // 3. 分支数据冒险（注意！）
   // 由于 branch_comp 移到了 EX 阶段，它可以直接利用 EX 阶段的前递逻辑

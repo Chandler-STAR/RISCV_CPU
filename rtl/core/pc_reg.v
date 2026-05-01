@@ -10,15 +10,13 @@ module pc_reg (
     output reg [31:0] pc4 //将pc4 改为寄存器输出
 );
 
-  //assign pc4 = pc + 32'd4;
+  assign pc4 = pc + 32'd4;
 
   always @(posedge clk) begin
     if (rst) begin
       pc <= 32'h8000_0000;  // 复位时 PC 初始化为 0x8000_0000
-      pc4 <= 32'h8000_0004;  // 复位时 PC4 初始化为 0x8000_0004
     end else if (!stall) begin
       pc <= pc_next;
-      pc <= pc_next + 32'h4;
     end
   end
 endmodule
