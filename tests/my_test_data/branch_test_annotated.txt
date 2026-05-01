@@ -1,0 +1,44 @@
+// branch_test_annotated.txt
+// RV32I Branch Prediction Test
+// Format: <hex>    // PC=0x????  <disassembly>
+// Total: 39 instructions (156 bytes)
+
+01400293    // PC=0x0000  li t0, 20
+fff28293    // PC=0x0004  addi t0, t0, -1
+fe029ee3    // PC=0x0008  bnez t0, 0x00000004  // offset=-4
+01400293    // PC=0x000C  li t0, 20
+00100313    // PC=0x0010  li t1, 1
+0062f3b3    // PC=0x0014  and t2, t0, t1
+00038663    // PC=0x0018  beqz t2, 0x00000024  // offset=+12
+00000013    // PC=0x001C  nop
+0080006f    // PC=0x0020  j 0x00000028  // offset=+8
+00000013    // PC=0x0024  nop
+fff28293    // PC=0x0028  addi t0, t0, -1
+fe0294e3    // PC=0x002C  bnez t0, 0x00000014  // offset=-24
+01e00293    // PC=0x0030  li t0, 30
+00000313    // PC=0x0034  li t1, 0
+00130313    // PC=0x0038  addi t1, t1, 1
+00300393    // PC=0x003C  li t2, 3
+00734663    // PC=0x0040  blt t1, t2, 0x0000004c  // offset=+12
+00000313    // PC=0x0044  li t1, 0
+0080006f    // PC=0x0048  j 0x00000050  // offset=+8
+00000013    // PC=0x004C  nop
+fff28293    // PC=0x0050  addi t0, t0, -1
+fe0292e3    // PC=0x0054  bnez t0, 0x00000038  // offset=-28
+01400293    // PC=0x0058  li t0, 20
+000003b7    // PC=0x005C  lui t2, 0x00000
+08c38393    // PC=0x0060  addi t2, t2, 140
+00000e37    // PC=0x0064  lui t3, 0x00000
+094e0e13    // PC=0x0068  addi t3, t3, 148
+0012f313    // PC=0x006C  andi t1, t0, 1
+00030663    // PC=0x0070  beqz t1, 0x0000007c  // offset=+12
+000380e7    // PC=0x0074  jalr ra, t2, 0
+0080006f    // PC=0x0078  j 0x00000080  // offset=+8
+000e00e7    // PC=0x007C  jalr ra, t3, 0
+fff28293    // PC=0x0080  addi t0, t0, -1
+fe0294e3    // PC=0x0084  bnez t0, 0x0000006c  // offset=-24
+0000006f    // PC=0x0088  j . (finish, infinite loop)  // -> 0x00000088
+00100513    // PC=0x008C  li a0, 1
+00008067    // PC=0x0090  ret
+00200513    // PC=0x0094  li a0, 2
+00008067    // PC=0x0098  ret

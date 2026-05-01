@@ -47,16 +47,19 @@ module hazard_unit (
     input  wire [31:0] instr_id,     // ID 级指令
     input  wire [31:0] instr_ex,     // EX 级指令
     input  wire        mem_re_ex,    // EX 级 Load 标志（mem_read_enable）
-    input  wire        pc_sel,       // 来自 EX 阶段的最终跳转决策信号
+    input  wire        pc_sel,       // 来自 EX 阶段的最终跳转决策信号 
     output wire        stall,        // =1: 冻结 PC 和 IF/ID 寄存器
     output wire        flush_if_id,  // =1: 清空 IF/ID 寄存器
     output wire        flush_id_ex,  // =1: 清空 ID/EX 寄存器
-    input  wire        reg_we_ex     // EX 级写使能
+    input  wire        reg_we_ex,    // EX 级写使能
+
+    input wire predict_wrong  // 预测错误时需要清空 IF/ID 和 ID/EX 寄存器，防止错误指令进入后续阶段
 );
   // 1. 字段提取
   wire [4:0] rs1_id = instr_id[19:15];
   wire [4:0] rs2_id = instr_id[24:20];
   wire [4:0] rd_ex = instr_ex[11:7];
+  wire is_branch_id = (instr_ex[6:0] == 7'b110_0011) | (instr_ex[6:0] == 7'b110_1111) | (instr_ex[6:0] == 7'b110_0111);  // BEQ|BNE|BLT|BGE|BLTU|BGEU|JAL|JALR
 
   // 2. Load-Use 冒险检测
   // 如果 EX 阶段是 Load 指令，且其目的寄存器 rd 是 ID 阶段指令的源寄存器
@@ -73,12 +76,12 @@ module hazard_unit (
   // 只有 Load-Use 冲突时需要暂停
   assign stall = load_use;
 
-  // 当 EX 阶段决定跳转时（pc_sel=1），冲刷掉已经进入流水线的后两条错误指令
-  assign flush_if_id = pc_sel;
+  // 发生预测错误时也需要冲刷指令
+  assign flush_if_id = is_branch_id && predict_wrong;  // 预测错误时清空 IF/ID 寄存器
 
   // ID/EX 寄存器在两种情况下需要清零（插入气泡）：
   // 1. 发生 Load-Use 冲突，需要停一拍。
-  // 2. 发生跳转，需要冲刷掉 ID 段的指令。
-  assign flush_id_ex = load_use | pc_sel;
+  // 2. 预测错误，需要冲刷掉 ID 段的指令。
+  assign flush_id_ex = load_use | (is_branch_id && predict_wrong);  // 预测错误时清空 ID/EX 寄存器
 
 endmodule
