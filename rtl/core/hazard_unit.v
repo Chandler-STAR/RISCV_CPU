@@ -44,14 +44,14 @@ endmodule
 `include "../include/defines.vh"
 
 module hazard_unit (
-    input  wire [31:0] instr_id,     // ID 级指令
-    input  wire [31:0] instr_ex,     // EX 级指令
-    input  wire        mem_re_ex,    // EX 级 Load 标志（mem_read_enable）
-    input  wire        pc_sel,       // 来自 EX 阶段的最终跳转决策信号 
-    output wire        stall,        // =1: 冻结 PC 和 IF/ID 寄存器
-    output wire        flush_if_id,  // =1: 清空 IF/ID 寄存器
-    output wire        flush_id_ex,  // =1: 清空 ID/EX 寄存器
-    input  wire        reg_we_ex,    // EX 级写使能
+    input wire [31:0] instr_id,  // ID 级指令
+    input wire [31:0] instr_ex,  // EX 级指令
+    input wire mem_re_ex,  // EX 级 Load 标志（mem_read_enable）
+    input wire pc_sel,  // 来自 EX 阶段的最终跳转决策信号，无用可删除
+    output wire stall,  // =1: 冻结 PC 和 IF/ID 寄存器
+    output wire flush_if_id,  // =1: 清空 IF/ID 寄存器
+    output wire flush_id_ex,  // =1: 清空 ID/EX 寄存器
+    input wire reg_we_ex,  // EX 级写使能
 
     input wire predict_wrong  // 预测错误时需要清空 IF/ID 和 ID/EX 寄存器，防止错误指令进入后续阶段
 );
@@ -59,6 +59,7 @@ module hazard_unit (
   wire [4:0] rs1_id = instr_id[19:15];
   wire [4:0] rs2_id = instr_id[24:20];
   wire [4:0] rd_ex = instr_ex[11:7];
+  //防止在非分支指令中误判预测错误导致不必要的停顿和指令清空
   wire is_branch_id = (instr_ex[6:0] == 7'b110_0011) | (instr_ex[6:0] == 7'b110_1111) | (instr_ex[6:0] == 7'b110_0111);  // BEQ|BNE|BLT|BGE|BLTU|BGEU|JAL|JALR
 
   // 2. Load-Use 冒险检测
@@ -77,6 +78,7 @@ module hazard_unit (
   assign stall = load_use;
 
   // 发生预测错误时也需要冲刷指令
+  // 冲刷不再由pc_sel决定，而是由predict_wrong决定
   assign flush_if_id = is_branch_id && predict_wrong;  // 预测错误时清空 IF/ID 寄存器
 
   // ID/EX 寄存器在两种情况下需要清零（插入气泡）：

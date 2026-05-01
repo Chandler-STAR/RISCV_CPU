@@ -15,6 +15,7 @@ module branch_predictor #(
 
     // IF 阶段：预测接口
     input  wire [PC_WIDTH-1:0] if_pc,
+    //向 IF/ID寄存器输出预测结果，两个周期后由传递到 EX 阶段进行验证
     output reg                 predict_taken,
     output reg  [PC_WIDTH-1:0] predict_target,
 
@@ -29,6 +30,7 @@ module branch_predictor #(
   reg  [          1:0] bht_counters                                                  [BHT_SIZE-1:0];
   reg  [ PC_WIDTH-1:0] btb_target                                                    [BHT_SIZE-1:0];
   reg  [ PC_WIDTH-1:0] btb_tag                                                       [BHT_SIZE-1:0];
+  //valid位表示该BTB条目是否有效，初始为无效，只有当分支指令被执行后才会被设置为有效
   reg                  btb_valid                                                     [BHT_SIZE-1:0];
 
   wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2];  // 忽略低两位的对齐位
@@ -41,6 +43,7 @@ module branch_predictor #(
       predict_taken  = bht_counters[if_idx][1];
       predict_target = btb_target[if_idx];
     end else begin
+      // 以下为冗余代码，在顶层中若predict_taken  = 1'b0成立则pc_next直接取pc4，不会使用predict_target，因此这里predict_target的值无关紧要，但为了保持逻辑清晰和避免潜在的综合工具警告，仍然将其设置为一个合理的默认值（顺序执行的下一个地址）
       predict_taken  = 1'b0;
       predict_target = if_pc + 4;  // 默认顺序执行
     end

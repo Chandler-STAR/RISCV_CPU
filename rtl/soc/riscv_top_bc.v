@@ -131,11 +131,13 @@ module myCPU (
 
   assign pc_branch = (e_instr[6:0] == 7'b110_0111) ? {alu_out[31:1], 1'b0} : alu_out;
   assign pc_sel = (e_branch & branch_taken_ex) | e_jump;
+  //判断错误：依据ex的pc_sel判断跳转；判断正确：直接跳转或不跳转
   assign pc_next = predict_wrong ? (pc_sel ? pc_branch : e_pc4) : (predict_taken ? predict_target : pc4);
-
+  //跳转地址正误判断
   assign predict_target_wrong = e_branch && (e_predict_target != pc_branch);
-  assign predict_wrong = predict_direction_wrong || predict_target_wrong||e_jump;// 只要预测方向错误或目标地址错误，就认为预测失败
-
+  // 只要预测方向错误或目标地址错误，就认为预测失败，J型指令直接判失败不预测
+  //predict_direction_wrong由 branch_comp 产生，predict_target_wrong 由 EX 阶段的实际跳转目标与预测目标比较产生
+  assign predict_wrong = predict_direction_wrong || predict_target_wrong || e_jump;
   // ====================== WB 阶段逻辑 ======================
   assign wd = (w_wb_sel == `WB_ALU) ? w_alu_out : (w_wb_sel == `WB_MEM) ? w_mem_rdata : w_pc4;
 
