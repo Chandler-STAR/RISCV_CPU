@@ -7,7 +7,7 @@ module pc_reg (
     // 当前 PC → imem.pc 和 if_id_reg.pc_in
     output reg [31:0] pc,
     // PC+4 → if_id_reg.pc4_in（assign pc4 = pc + 32'd4）
-    output reg [31:0] pc4 //将pc4 改为寄存器输出
+    output wire [31:0] pc4 
 );
 
   assign pc4 = pc + 32'd4;
