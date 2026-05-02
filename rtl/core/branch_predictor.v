@@ -20,29 +20,29 @@ module branch_predictor #(
     output reg  [PC_WIDTH-1:0] predict_target,
 
     // EX 阶段：更新接口
-    input wire                ex_is_branch,     // 是一条分支指令
-    input wire [PC_WIDTH-1:0] ex_pc,            // 分支指令的PC
+    input wire                ex_is_branch,      // 是一条分支指令
+    input wire [PC_WIDTH-1:0] ex_pc,             // 分支指令的PC
     input wire                ex_actual_taken,
     input wire [PC_WIDTH-1:0] ex_actual_target,
-    input wire                stall_back       // DRAM停顿时禁止更新BHT
+    input wire                stall_back         // DRAM停顿时禁止更新BHT
 );
 
   // 内部存储结构 - 用initial块初始化，避免综合/仿真差异
-  reg  [          1:0] bht_counters [BHT_SIZE-1:0];
-  reg  [ PC_WIDTH-1:0] btb_target   [BHT_SIZE-1:0];
-  reg  [ PC_WIDTH-1:0] btb_tag      [BHT_SIZE-1:0];
-  reg                  btb_valid    [BHT_SIZE-1:0];
+  reg     [         1:0] bht_counters[BHT_SIZE-1:0];
+  reg     [PC_WIDTH-1:0] btb_target  [BHT_SIZE-1:0];
+  reg     [PC_WIDTH-1:0] btb_tag     [BHT_SIZE-1:0];
+  reg                    btb_valid   [BHT_SIZE-1:0];
 
-  integer init_i;
+  integer                init_i;
   initial begin
     for (init_i = 0; init_i < BHT_SIZE; init_i = init_i + 1) begin
       bht_counters[init_i] = 2'b01;
       btb_valid[init_i]    = 1'b0;
     end
   end
-
-  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2];
-  wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2];
+  // 计算索引：使用PC的不同位进行异或，增加分布均匀性
+  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2] ^ if_pc[BHT_IDX_W+9:10];
+  wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2] ^ ex_pc[BHT_IDX_W+9:10];
 
   // --- IF 阶段：组合逻辑查询 ---
   always @(*) begin
