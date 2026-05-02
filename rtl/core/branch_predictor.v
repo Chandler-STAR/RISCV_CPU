@@ -22,18 +22,26 @@ module branch_predictor #(
     // EX 阶段：更新接口
     input wire                ex_is_branch,     // 是一条分支指令
     input wire [PC_WIDTH-1:0] ex_pc,            // 分支指令的PC
-    input wire                ex_actual_taken,  // 实际是否跳转
-    input wire [PC_WIDTH-1:0] ex_actual_target  // 实际跳转目标
+    input wire                ex_actual_taken,
+    input wire [PC_WIDTH-1:0] ex_actual_target,
+    input wire                stall_back       // DRAM停顿时禁止更新BHT
 );
 
-  // 内部存储结构
-  reg  [          1:0] bht_counters                                                  [BHT_SIZE-1:0];
-  reg  [ PC_WIDTH-1:0] btb_target                                                    [BHT_SIZE-1:0];
-  reg  [ PC_WIDTH-1:0] btb_tag                                                       [BHT_SIZE-1:0];
-  //valid位表示该BTB条目是否有效，初始为无效，只有当分支指令被执行后才会被设置为有效
-  reg                  btb_valid                                                     [BHT_SIZE-1:0];
+  // 内部存储结构 - 用initial块初始化，避免综合/仿真差异
+  reg  [          1:0] bht_counters [BHT_SIZE-1:0];
+  reg  [ PC_WIDTH-1:0] btb_target   [BHT_SIZE-1:0];
+  reg  [ PC_WIDTH-1:0] btb_tag      [BHT_SIZE-1:0];
+  reg                  btb_valid    [BHT_SIZE-1:0];
 
-  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2];  // 忽略低两位的对齐位
+  integer init_i;
+  initial begin
+    for (init_i = 0; init_i < BHT_SIZE; init_i = init_i + 1) begin
+      bht_counters[init_i] = 2'b01;
+      btb_valid[init_i]    = 1'b0;
+    end
+  end
+
+  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2];
   wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2];
 
   // --- IF 阶段：组合逻辑查询 ---
@@ -50,14 +58,10 @@ module branch_predictor #(
   end
 
   // --- EX 阶段：更新逻辑 ---
-  integer i;
-  always @(posedge clk or posedge rst) begin
+  always @(posedge clk) begin
     if (rst) begin
-      for (i = 0; i < BHT_SIZE; i = i + 1) begin
-        bht_counters[i] <= 2'b01; // 初始设为弱不跳转
-        btb_valid[i]    <= 1'b0;
-      end
-    end else if (ex_is_branch) begin
+      // 初始化由initial块处理，此处仅复位可综合逻辑
+    end else if (ex_is_branch && !stall_back) begin  // DRAM停顿时禁止更新，防止重复计数
       // 1. 更新 BTB 目标
       btb_valid[ex_idx]  <= 1'b1;
       btb_tag[ex_idx]    <= ex_pc;

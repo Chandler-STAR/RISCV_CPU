@@ -7,6 +7,8 @@ module ctrl (
     output reg         branch_d,     // 条件分支标志
     output reg         jump_d,       // 无条件跳转（JAL/JALR）
     output reg         alu_src_d,    // ALU B 来源：0=rs2，1=imm
+    output reg         rs1_en_d,     // ID指令是否使用rs1（排除LUI/AUIPC/JAL）
+    output reg         rs2_en_d,     // ID指令是否使用rs2（排除I-type/Load等）
     output reg  [ 1:0] wb_sel_d,     // 写回来源
     output reg  [ 3:0] alu_op_d,     // ALU 操作码
     output reg  [ 1:0] mem_width_d,  // 访存宽度
@@ -24,6 +26,8 @@ module ctrl (
     branch_d  = 1'b0;
     jump_d    = 1'b0;
     alu_src_d   = 1'b0;
+    rs2_en_d    = 1'b0;
+    rs1_en_d    = 1'b0;
     wb_sel_d    = `WB_ALU;
     alu_op_d    = `ALU_ADD;
     mem_width_d = `MEM_WORD;
@@ -34,6 +38,8 @@ module ctrl (
       // ══ R 型 ══════════════════════════════
       7'b011_0011: begin
         reg_we_d = 1'b1;
+        rs1_en_d = 1'b1;
+        rs2_en_d = 1'b1;
         case (funct3)
           3'b000:  alu_op_d = f7b5 ? `ALU_SUB : `ALU_ADD;  // ADD/SUB
           3'b001:  alu_op_d = `ALU_SLL;  // SLL
@@ -51,6 +57,7 @@ module ctrl (
       7'b001_0011: begin
         reg_we_d  = 1'b1;
         alu_src_d = 1'b1;
+        rs1_en_d  = 1'b1;
         case (funct3)
           3'b000:  alu_op_d = `ALU_ADD;  // ADDI
           3'b010:  alu_op_d = `ALU_SLT;  // SLTI
@@ -69,6 +76,7 @@ module ctrl (
         reg_we_d  = 1'b1;
         mem_re_d  = 1'b1;
         alu_src_d = 1'b1;
+        rs1_en_d  = 1'b1;
         wb_sel_d  = `WB_MEM;
         case (funct3)
           3'b000: begin
@@ -98,6 +106,8 @@ module ctrl (
       // ══ Store ════════════════════════════
       7'b010_0011: begin
         mem_we_d  = 1'b1;
+        rs2_en_d = 1'b1;
+        rs1_en_d = 1'b1;
         alu_src_d = 1'b1;
         case (funct3)
           3'b000:  mem_width_d = `MEM_BYTE;  // SB
@@ -111,6 +121,8 @@ module ctrl (
       // ALU 计算分支目标地址 = pc + imm（alu_a=pc 在顶层处理）
       7'b110_0011: begin
         branch_d  = 1'b1;
+        rs2_en_d = 1'b1;
+        rs1_en_d = 1'b1;
         alu_src_d = 1'b1;  // alu_b = imm
         alu_op_d  = `ALU_ADD;
       end
@@ -128,6 +140,7 @@ module ctrl (
       7'b110_0111: begin
         reg_we_d = 1'b1;
         jump_d = 1'b1;
+        rs1_en_d = 1'b1;
         alu_src_d = 1'b1;
         wb_sel_d = `WB_PC4;
         alu_op_d = `ALU_ADD;  // 目标 = rs1 + imm（bit0 在顶层清零）
