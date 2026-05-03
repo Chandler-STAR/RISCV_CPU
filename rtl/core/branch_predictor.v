@@ -202,9 +202,9 @@
 //256→16，，8→4
 module branch_predictor #(
     parameter PC_WIDTH  = 32,
-    parameter BHT_SIZE  = 16,
-    parameter BHT_IDX_W = 4,
-    parameter RAS_DEPTH = 8     // RAS 深度，通常 8-16 即可满足大部分需求
+    parameter BHT_SIZE  = 64,
+    parameter BHT_IDX_W = 6,
+    parameter RAS_DEPTH = 8    // RAS 深度，通常 8-16 即可满足大部分需求
 ) (
     input wire clk,
     input wire rst,
@@ -241,8 +241,8 @@ module branch_predictor #(
   reg [PC_WIDTH-1:0] ras_stack[RAS_DEPTH-1:0];
   reg [$clog2(RAS_DEPTH)-1:0] ras_ptr;  // 指向栈顶
 
-  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2] ^ if_pc[BHT_IDX_W+9:10];
-  wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2] ^ ex_pc[BHT_IDX_W+9:10];
+  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2] ^ if_pc[BHT_IDX_W+7:BHT_IDX_W+2];
+  wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2] ^ ex_pc[BHT_IDX_W+7:BHT_IDX_W+2];
 
   // --- IF 阶段：组合逻辑查询 ---
   always @(*) begin
