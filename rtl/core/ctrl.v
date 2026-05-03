@@ -12,11 +12,26 @@ module ctrl (
     output reg  [ 1:0] wb_sel_d,     // 写回来源
     output reg  [ 3:0] alu_op_d,     // ALU 操作码
     output reg  [ 1:0] mem_width_d,  // 访存宽度
-    output reg         mem_sign_d    // Load 符号扩展
+    output reg         mem_sign_d,   // Load 符号扩展
+    output reg  [ 1:0] instr_type    // 指令类型：00=Branch, 01=Jump, 10=Call, 11=Ret
+
 );
+
+  localparam TYPE_BRANCH = 2'b00;
+  localparam TYPE_JUMP = 2'b01;
+  localparam TYPE_CALL = 2'b10;
+  localparam TYPE_RET = 2'b11;
+
   wire [6:0] opcode = d_instr[6:0];
   wire [2:0] funct3 = d_instr[14:12];
   wire       f7b5 = d_instr[30];  // funct7[5]，区分 ADD/SUB，SRL/SRA
+
+  wire [4:0] rd = d_instr[11:7];
+  wire [4:0] rs1 = d_instr[19:15];
+
+  // 辅助信号：判断是否是链接寄存器 (x1 或 x5)
+  wire       rd_is_link = (rd == 5'd1 || rd == 5'd5);
+  wire       rs1_is_link = (rs1 == 5'd1 || rs1 == 5'd5);
 
   always @(*) begin
     // ── 默认值（防止 latch）──────────────
@@ -32,7 +47,7 @@ module ctrl (
     alu_op_d    = `ALU_ADD;
     mem_width_d = `MEM_WORD;
     mem_sign_d  = 1'b1;
-
+    instr_type = TYPE_BRANCH;  // 默认类型为分支，后续根据指令覆盖
     case (opcode)
 
       // ══ R 型 ══════════════════════════════
@@ -106,8 +121,8 @@ module ctrl (
       // ══ Store ════════════════════════════
       7'b010_0011: begin
         mem_we_d  = 1'b1;
-        rs2_en_d = 1'b1;
-        rs1_en_d = 1'b1;
+        rs2_en_d  = 1'b1;
+        rs1_en_d  = 1'b1;
         alu_src_d = 1'b1;
         case (funct3)
           3'b000:  mem_width_d = `MEM_BYTE;  // SB
@@ -121,19 +136,20 @@ module ctrl (
       // ALU 计算分支目标地址 = pc + imm（alu_a=pc 在顶层处理）
       7'b110_0011: begin
         branch_d  = 1'b1;
-        rs2_en_d = 1'b1;
-        rs1_en_d = 1'b1;
+        rs2_en_d  = 1'b1;
+        rs1_en_d  = 1'b1;
         alu_src_d = 1'b1;  // alu_b = imm
         alu_op_d  = `ALU_ADD;
       end
 
       // ══ JAL ══════════════════════════════
       7'b110_1111: begin
-        reg_we_d = 1'b1;
-        jump_d = 1'b1;
-        alu_src_d = 1'b1;
-        wb_sel_d = `WB_PC4;
-        alu_op_d = `ALU_ADD;  // 目标 = pc + imm（alu_a=pc 在顶层处理）
+        reg_we_d   = 1'b1;
+        jump_d     = 1'b1;
+        alu_src_d  = 1'b1;
+        wb_sel_d   = `WB_PC4;
+        alu_op_d   = `ALU_ADD;  // 目标 = pc + imm（alu_a=pc 在顶层处理）
+        instr_type = rd_is_link ? TYPE_CALL : TYPE_JUMP;
       end
 
       // ══ JALR ═════════════════════════════
@@ -144,6 +160,16 @@ module ctrl (
         alu_src_d = 1'b1;
         wb_sel_d = `WB_PC4;
         alu_op_d = `ALU_ADD;  // 目标 = rs1 + imm（bit0 在顶层清零）
+        if (rd_is_link) begin
+          // 情况 1: jalr x1, rs1, 0 -> 这是一个 Call
+          instr_type = TYPE_CALL;
+        end else if (rs1_is_link && rd == 5'd0) begin
+          // 情况 2: jalr x0, x1, 0 -> 这是一个 Return (ret)
+          instr_type = TYPE_RET;
+        end else begin
+          // 情况 3: 普通的间接跳转
+          instr_type = TYPE_JUMP;
+        end
       end
 
       // ══ LUI ══════════════════════════════
