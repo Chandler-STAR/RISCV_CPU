@@ -4,7 +4,7 @@ module alu (
     input wire [31:0] alu_a,
     input wire [31:0] alu_b,
     input  wire [3:0]  alu_op,  // 来自控制单元的 ALU 操作码，全局定义在 defines.vh 中
-    output reg [31:0] alu_out,
+  (* use_dsp = "yes" *) output reg [31:0] alu_out,
     output wire zero  // alu_ou输出为0的时候为1，辅助调试用的
 );
   wire [4:0] shamt = alu_b[4:0];  // 移位量取低 5 位

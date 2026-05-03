@@ -199,11 +199,11 @@
 //   end
 
 // endmodule
-
+//256→16，，8→4
 module branch_predictor #(
     parameter PC_WIDTH  = 32,
-    parameter BHT_SIZE  = 256,
-    parameter BHT_IDX_W = 8,
+    parameter BHT_SIZE  = 16,
+    parameter BHT_IDX_W = 4,
     parameter RAS_DEPTH = 8     // RAS 深度，通常 8-16 即可满足大部分需求
 ) (
     input wire clk,
