@@ -22,12 +22,23 @@ module id_ex1_reg (
     input  wire        jump_in,            // 无条件跳转标志（JAL/JALR）
     input  wire        alu_src_in,         // ALU B口选择：0=rs2, 1=立即数
     input  wire [ 1:0] wb_sel_in,          // 写回来源：ALU/MEM/PC4
-    input  wire [ 3:0] alu_op_in,          // ALU操作码
+    input  wire [ 4:0] alu_op_in,          // ALU操作码
     input  wire [ 1:0] mem_width_in,       // 访存宽度：字节/半字/字
     input  wire        mem_sign_in,        // Load符号扩展使能
     input  wire        predict_taken_in,   // 分支预测taken
     input  wire [31:0] predict_target_in,  // 分支预测target
     input  wire [ 1:0] instr_type_in,      // 输出到EX1阶段
+    
+    // Zicsr / Trap / M / B 扩展新增端口
+    input  wire        is_csr_in,
+    input  wire [ 1:0] csr_op_in,
+    input  wire        csr_uimm_in,
+    input  wire        is_ecall_in,
+    input  wire        is_mret_in,
+    input  wire        is_mul_in,
+    input  wire        is_div_in,
+    input  wire        is_bext_in,
+
     // 输出全部打一拍
     output reg  [31:0] e1_pc,
     output reg  [31:0] e1_pc4,
@@ -43,12 +54,22 @@ module id_ex1_reg (
     output reg         e1_jump,
     output reg         e1_alu_src,
     output reg  [ 1:0] e1_wb_sel,
-    output reg  [ 3:0] e1_alu_op,
+    output reg  [ 4:0] e1_alu_op,
     output reg  [ 1:0] e1_mem_width,
     output reg         e1_mem_sign,
     output reg         e1_predict_taken,   // 传预测结果到EX1
     output reg  [31:0] e1_predict_target,
     output reg  [ 1:0] e1_instr_type       // 传指令类型到EX1
+
+    // Zicsr / Trap / M / B 扩展新增输出
+    output reg         e1_is_csr,
+    output reg  [ 1:0] e1_csr_op,
+    output reg         e1_csr_uimm,
+    output reg         e1_is_ecall,
+    output reg         e1_is_mret,
+    output reg         e1_is_mul,
+    output reg         e1_is_div,
+    output reg         e1_is_bext
 );
 
   always @(posedge clk) begin
@@ -73,6 +94,17 @@ module id_ex1_reg (
       e1_predict_taken  <= 1'b0;
       e1_predict_target <= 32'd0;
       e1_instr_type     <= 2'b00;  // 默认非分支指令
+
+      // 扩展信号复位
+      e1_is_csr         <= 1'b0;
+      e1_csr_op         <= `CSR_OP_NONE;
+      e1_csr_uimm       <= 1'b0;
+      e1_is_ecall       <= 1'b0;
+      e1_is_mret        <= 1'b0;
+      e1_is_mul         <= 1'b0;
+      e1_is_div         <= 1'b0;
+      e1_is_bext        <= 1'b0;
+
     end else
     if (stall) begin
     end else begin
@@ -96,6 +128,15 @@ module id_ex1_reg (
       e1_predict_taken  <= predict_taken_in;
       e1_predict_target <= predict_target_in;
       e1_instr_type     <= instr_type_in;
+      //扩展信号打拍
+      e1_is_csr         <= is_csr_in;
+      e1_csr_op         <= csr_op_in;
+      e1_csr_uimm       <= csr_uimm_in;
+      e1_is_ecall       <= is_ecall_in;
+      e1_is_mret        <= is_mret_in;
+      e1_is_mul         <= is_mul_in;
+      e1_is_div         <= is_div_in;
+      e1_is_bext        <= is_bext_in;
     end
   end
 
