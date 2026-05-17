@@ -13,7 +13,7 @@ module ctrl (
     output reg  [ 4:0] alu_op_d,     // ALU 操作码
     output reg  [ 1:0] mem_width_d,  // 访存宽度
     output reg         mem_sign_d,   // Load 符号扩展
-    output reg  [ 1:0] instr_type    // 指令类型：00=Branch, 01=Jump, 10=Call, 11=Ret
+    output reg  [ 1:0] instr_type,    // 指令类型：00=Branch, 01=Jump, 10=Call, 11=Ret
 
     // === Zicsr / Trap / M / B 扩展新增端口 ===
     output reg         is_csr_d,     // 当前是 zicsr 指令
@@ -100,8 +100,9 @@ module ctrl (
           3'b111:  alu_op_d = `ALU_AND;  // AND
           default: alu_op_d = `ALU_ADD;
         endcase
+        end
       end
-
+      
       // ══ I 型（立即数 ALU）════════════════
       7'b001_0011: begin
         reg_we_d  = 1'b1;

@@ -243,7 +243,7 @@ module myCPU (
       .e1_mem_width(e1_mem_width),
       .e1_predict_taken(e1_predict_taken),
       .e1_predict_target(e1_predict_target),
-      .e1_instr_type(e1_instr_type)，
+      .e1_instr_type(e1_instr_type),
       .e1_is_csr(e1_is_csr),    //新增输出信号
       .e1_csr_op(e1_csr_op),
       .e1_csr_uimm(e1_csr_uimm),

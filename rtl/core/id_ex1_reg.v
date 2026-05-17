@@ -59,7 +59,7 @@ module id_ex1_reg (
     output reg         e1_mem_sign,
     output reg         e1_predict_taken,   // 传预测结果到EX1
     output reg  [31:0] e1_predict_target,
-    output reg  [ 1:0] e1_instr_type       // 传指令类型到EX1
+    output reg  [ 1:0] e1_instr_type,       // 传指令类型到EX1
 
     // Zicsr / Trap / M / B 扩展新增输出
     output reg         e1_is_csr,
