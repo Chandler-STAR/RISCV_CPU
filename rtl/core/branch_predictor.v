@@ -202,9 +202,10 @@
 //256→16，，8→4
 module branch_predictor #(
     parameter PC_WIDTH  = 32,
-    parameter BHT_SIZE  = 64,
-    parameter BHT_IDX_W = 6,
-    parameter RAS_DEPTH = 8    // RAS 深度，通常 8-16 即可满足大部分需求
+    parameter BHT_SIZE  = 256,
+    parameter BHT_IDX_W = 8,
+    parameter RAS_DEPTH = 8,    // RAS 深度，通常 8-16 即可满足大部分需求
+    parameter GHR_WIDTH = 8
 ) (
     input wire clk,
     input wire rst,
@@ -222,7 +223,23 @@ module branch_predictor #(
     input wire ex_actual_taken,
     input wire [PC_WIDTH-1:0] ex_actual_target,
     input wire stall_back  // DRAM停顿时禁止更新BHT
+
 );
+
+  function [BHT_IDX_W-1:0] hash_pc;
+    input [31:0] pc;
+    input [GHR_WIDTH-1:0] BHR;
+    integer i;
+    reg [BHT_IDX_W-1:0] h;
+    begin
+      h = 0;
+      for (i = 0; i < 30; i = i + 2) begin
+        h = h ^ pc[i+:BHT_IDX_W];
+      end
+      hash_pc = h ^ BHR[BHT_IDX_W-1:0];
+    end
+  endfunction
+
 
   // --- 指令类型定义 ---
   localparam TYPE_BRANCH = 2'b00;
@@ -241,8 +258,18 @@ module branch_predictor #(
   reg [PC_WIDTH-1:0] ras_stack[RAS_DEPTH-1:0];
   reg [$clog2(RAS_DEPTH)-1:0] ras_ptr;  // 指向栈顶
 
-  wire [BHT_IDX_W-1:0] if_idx = if_pc[BHT_IDX_W+1:2] ^ if_pc[BHT_IDX_W+7:BHT_IDX_W+2];
-  wire [BHT_IDX_W-1:0] ex_idx = ex_pc[BHT_IDX_W+1:2] ^ ex_pc[BHT_IDX_W+7:BHT_IDX_W+2];
+
+  // GHR 寄存器
+  reg [GHR_WIDTH-1:0] ghr;
+  // 每个流水线阶段维持 GHR 值
+  reg [GHR_WIDTH-1:0] ghr_at_ex1;  // EX1 阶段的 GHR (打一拍)
+  reg [GHR_WIDTH-1:0] ghr_at_ex2;  // EX2 阶段的 GHR (打两拍)
+
+  //使用CRC-like 哈希函数计算索引，增加分布均匀性，减少冲突
+  wire [BHT_IDX_W-1:0] if_idx = hash_pc(if_pc, ghr);  // 索引时结合 GHR 增加分布均匀性
+  wire [BHT_IDX_W-1:0] ex_idx = hash_pc(
+      ex_pc, ghr_at_ex2
+  );  // EX 阶段使用对应的 GHR 快照计算索引
 
   // --- IF 阶段：组合逻辑查询 ---
   always @(*) begin
@@ -309,6 +336,22 @@ module branch_predictor #(
           // Pop: 弹出地址
           ras_ptr <= (ras_ptr == 0) ? RAS_DEPTH - 1 : ras_ptr - 1;
         end
+      end
+    end
+  end
+  // GHR 传递（每个周期打拍）
+  always @(posedge clk or posedge rst) begin
+    if (rst) begin
+      ghr        <= 0;
+      ghr_at_ex1 <= 0;
+      ghr_at_ex2 <= 0;
+    end else if (!stall_back) begin
+      ghr_at_ex1 <= ghr;
+      ghr_at_ex2 <= ghr_at_ex1;
+
+      // EX2 阶段更新 GHR（仅条件分支）
+      if (ex_is_branch && ex_instr_type == TYPE_BRANCH) begin
+        ghr <= {ghr[GHR_WIDTH-2:0], ex_actual_taken};
       end
     end
   end
