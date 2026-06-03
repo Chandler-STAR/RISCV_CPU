@@ -228,15 +228,15 @@ module branch_predictor #(
 
   function [BHT_IDX_W-1:0] hash_pc;
     input [31:0] pc;
-    input [GHR_WIDTH-1:0] BHR;
+    input [GHR_WIDTH-1:0] GHR;
     integer i;
     reg [BHT_IDX_W-1:0] h;
     begin
       h = 0;
-      for (i = 0; i < 30; i = i + 2) begin
+      for (i = 0; i + BHT_IDX_W <= 32; i = i + 2) begin
         h = h ^ pc[i+:BHT_IDX_W];
       end
-      hash_pc = h ^ BHR[BHT_IDX_W-1:0];
+      hash_pc = h ^ GHR[BHT_IDX_W-1:0];
     end
   endfunction
 
