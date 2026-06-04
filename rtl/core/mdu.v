@@ -55,6 +55,7 @@ module mdu (
   reg        div_q_neg_r;                       // 商结果符号（是否需要对商取反）
   reg        div_r_neg_r;                       // 余数结果符号（是否需要对余数取反）
   reg        div_need_rem_r;                    // 本次需要余数（is_rem 或 is_remu）
+  reg        div_is_divu_r;
   reg        div_by_zero_r;                     // 除数为零标志
   reg        div_overflow_r;                    // 除法溢出标志（仅有符号除法 a=-2^31 b=-1 会溢出）
   reg [63:0] div_acc;                           // 除法运算寄存器（高 32 位为部分商，低 32 位为部分余数）   
@@ -95,6 +96,7 @@ module mdu (
             div_q_neg_r    <= div_signed ? ((a[31] ^ b[31]) & (b != 32'd0)) : 1'b0;// 商符号（异号且除数不为0时商为负）
             div_r_neg_r    <= div_signed ? a[31] : 1'b0;                        // 余数符号（有符号除法且被除数为负时余数为负）
             div_need_rem_r <= is_rem | is_remu;                                 // 是否需要计算余数
+            div_is_divu_r  <= is_divu;
             div_by_zero_r  <= (b == 32'd0);                 // 除数为零标志         
             div_overflow_r <= div_signed & (a == 32'h8000_0000) & (b == 32'hFFFF_FFFF);// 除法溢出标志
             div_acc        <= {32'd0, div_signed ? (a[31] ? (~a + 32'd1) : a) : a}; // 除法运算寄存器初始值（部分商=0，部分余数=被除数绝对值）
@@ -135,7 +137,8 @@ module mdu (
         end
         S_DIV_FIX: begin
           if (div_by_zero_r) begin
-            result <= div_need_rem_r ? div_dividend_r : 32'hFFFF_FFFF;      // 除数为零时商为 0xFFFF_FFFF，余数为被除数
+            result <= div_need_rem_r ? div_dividend_r :
+                      (div_is_divu_r ? 32'h8000_0000 : 32'hFFFF_FFFF);
           end else if (div_overflow_r) begin                                            // 有符号除法溢出时商为 0x8000_0000，余数为 0
             result <= div_need_rem_r ? 32'd0 : 32'h8000_0000;               
           end else if (div_need_rem_r) begin                            // 需要余数时输出余数（根据符号位决定是否取反）

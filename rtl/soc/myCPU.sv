@@ -93,6 +93,10 @@ module myCPU (
   wire        trap_taken, mret_taken, trap_redirect;
   wire [31:0] trap_cause, trap_pc, trap_target;
 
+  // 性能计数器 —— 前向声明，给 csr_regfile 用
+  reg         stall_back_prev;
+  wire        instret_pulse = !stall_back_prev && (w_instr != 32'h0);
+
   // ==================== 3. 逻辑实现 ====================
 
   // -------------------- IF --------------------
@@ -364,6 +368,7 @@ module myCPU (
       .trap_pc(trap_pc),
       .trap_cause(trap_cause),
       .mret_taken(mret_taken),
+      .instret_inc(instret_pulse),
       .mtvec_o(mtvec_o),
       .mepc_o(mepc_o),
       .mstatus_o(mstatus_o)
@@ -589,5 +594,50 @@ module myCPU (
   wire ex1_can_advance = !dram_stall && (!mdu_is_op || mdu_finished);
   assign flush_id_ex1 = (load_use_stall && ex1_can_advance) || predict_wrong | trap_redirect;
 
+
+  // ================================================================
+  //                         性能计数器
+  // ================================================================
+  // instret 脉冲：mem2_wb_reg 在 stall_back=0 的拍 latch 新数据，
+  // 因此"上一拍 stall_back=0 且 w_instr 非空"即代表本拍 WB 收到了新指令。
+  // （stall_back_prev / instret_pulse 已在模块上方前向声明）
+
+  // 分支/跳转提交窗口：EX2 阶段非 stall 时才算 1 次
+  wire perf_br_commit  = e2_branch && !stall_back;
+  wire perf_jmp_commit = e2_jump   && !stall_back;
+  wire perf_br_mis     = perf_br_commit  && (predict_dir_wrong || predict_target_bad);
+  wire perf_jmp_mis    = perf_jmp_commit && predict_jump_bad;
+
+  reg [31:0] perf_branch_total, perf_branch_mispred;
+  reg [31:0] perf_jump_total,   perf_jump_mispred;
+  reg [31:0] perf_dram_stall_cyc, perf_load_use_stall_cyc, perf_mdu_stall_cyc;
+  reg [63:0] perf_cycles;
+  reg [63:0] perf_instret;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      stall_back_prev         <= 1'b0;
+      perf_cycles             <= 64'd0;
+      perf_instret            <= 64'd0;
+      perf_branch_total       <= 32'd0;
+      perf_branch_mispred     <= 32'd0;
+      perf_jump_total         <= 32'd0;
+      perf_jump_mispred       <= 32'd0;
+      perf_dram_stall_cyc     <= 32'd0;
+      perf_load_use_stall_cyc <= 32'd0;
+      perf_mdu_stall_cyc      <= 32'd0;
+    end else begin
+      stall_back_prev <= stall_back;
+      perf_cycles     <= perf_cycles + 64'd1;
+      if (instret_pulse)   perf_instret            <= perf_instret + 64'd1;
+      if (perf_br_commit)  perf_branch_total       <= perf_branch_total   + 32'd1;
+      if (perf_br_mis)     perf_branch_mispred     <= perf_branch_mispred + 32'd1;
+      if (perf_jmp_commit) perf_jump_total         <= perf_jump_total     + 32'd1;
+      if (perf_jmp_mis)    perf_jump_mispred       <= perf_jump_mispred   + 32'd1;
+      if (dram_stall)      perf_dram_stall_cyc     <= perf_dram_stall_cyc + 32'd1;
+      if (load_use_stall)  perf_load_use_stall_cyc <= perf_load_use_stall_cyc + 32'd1;
+      if (mdu_stall)       perf_mdu_stall_cyc      <= perf_mdu_stall_cyc + 32'd1;
+    end
+  end
 
 endmodule

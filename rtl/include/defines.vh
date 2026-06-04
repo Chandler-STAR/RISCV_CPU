@@ -43,11 +43,21 @@
 `define CAUSE_ECALL_M 32'd11   // M 模式 ecall
 
 // ===== M 模式 CSR 地址 =====
-`define CSR_MSTATUS  12'h300
-`define CSR_MTVEC    12'h305
-`define CSR_MSCRATCH 12'h340
-`define CSR_MEPC     12'h341
-`define CSR_MCAUSE   12'h342
+`define CSR_MSTATUS    12'h300
+`define CSR_MTVEC      12'h305
+`define CSR_MSCRATCH   12'h340
+`define CSR_MEPC       12'h341
+`define CSR_MCAUSE     12'h342
+
+// ===== 性能计数器 CSR（M 模式 RW + U 模式 RO 影子） =====
+`define CSR_MCYCLE     12'hB00
+`define CSR_MINSTRET   12'hB02
+`define CSR_MCYCLEH    12'hB80
+`define CSR_MINSTRETH  12'hB82
+`define CSR_CYCLE      12'hC00   // rdcycle  -> 同 mcycle
+`define CSR_INSTRET    12'hC02   // rdinstret -> 同 minstret
+`define CSR_CYCLEH     12'hC80
+`define CSR_INSTRETH   12'hC82
 
 // 写回来源选择
 `define WB_ALU  2'd0     // 写回ALU结果

@@ -18,8 +18,11 @@ module csr_regfile (
     input  wire [31:0] trap_cause,     // 写入 mcause
     input  wire        mret_taken,     // 本拍发生 mret
 
+    // —— 性能计数器 ——
+    input  wire        instret_inc,    // 本拍有 1 条指令退休
+
     // —— 给取指 / trap_ctrl 看的当前值 ——
-    output wire [31:0] mtvec_o,             
+    output wire [31:0] mtvec_o,
     output wire [31:0] mepc_o,
     output wire [31:0] mstatus_o
 );
@@ -35,6 +38,10 @@ module csr_regfile (
   reg [31:0] mcause_reg;
   reg [31:0] mscratch_reg;     // 无字段约束，纯 32-bit 软件读写
 
+  // --- 性能计数器 ---
+  reg [63:0] mcycle_reg;
+  reg [63:0] minstret_reg;
+
   // ============ 读口（组合逻辑） ============
   always @(*) begin
     case (csr_addr)
@@ -44,6 +51,10 @@ module csr_regfile (
       `CSR_MSCRATCH: csr_rdata = mscratch_reg;
       `CSR_MEPC    : csr_rdata = mepc_reg;
       `CSR_MCAUSE  : csr_rdata = mcause_reg;
+      `CSR_MCYCLE,    `CSR_CYCLE   : csr_rdata = mcycle_reg[31:0];
+      `CSR_MCYCLEH,   `CSR_CYCLEH  : csr_rdata = mcycle_reg[63:32];
+      `CSR_MINSTRET,  `CSR_INSTRET : csr_rdata = minstret_reg[31:0];
+      `CSR_MINSTRETH, `CSR_INSTRETH: csr_rdata = minstret_reg[63:32];
       default      : csr_rdata = 32'h0;
     endcase
   end
@@ -87,6 +98,30 @@ module csr_regfile (
         `CSR_MCAUSE  : mcause_reg   <= csr_wdata;
         default      : ;
       endcase
+    end
+  end
+
+  // ============ 性能计数器（独立 always；软件写优先于硬件递增） ============
+  always @(posedge clk) begin
+    if (rst) begin
+      mcycle_reg   <= 64'd0;
+      minstret_reg <= 64'd0;
+    end else begin
+      // mcycle: 软件写覆盖该 32 位 half，否则 +1
+      if (csr_we && csr_addr == `CSR_MCYCLE)
+        mcycle_reg <= {mcycle_reg[63:32], csr_wdata};
+      else if (csr_we && csr_addr == `CSR_MCYCLEH)
+        mcycle_reg <= {csr_wdata, mcycle_reg[31:0]};
+      else
+        mcycle_reg <= mcycle_reg + 64'd1;
+
+      // minstret: 软件写覆盖，否则按 instret_inc 递增
+      if (csr_we && csr_addr == `CSR_MINSTRET)
+        minstret_reg <= {minstret_reg[63:32], csr_wdata};
+      else if (csr_we && csr_addr == `CSR_MINSTRETH)
+        minstret_reg <= {csr_wdata, minstret_reg[31:0]};
+      else if (instret_inc)
+        minstret_reg <= minstret_reg + 64'd1;
     end
   end
 
