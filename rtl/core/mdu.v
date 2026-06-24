@@ -137,8 +137,8 @@ module mdu (
         end
         S_DIV_FIX: begin
           if (div_by_zero_r) begin
-            result <= div_need_rem_r ? div_dividend_r :
-                      (div_is_divu_r ? 32'h8000_0000 : 32'hFFFF_FFFF);
+            // RISC-V 规范：除以 0 时 DIV 与 DIVU 的商都为 0xFFFFFFFF（全 1），余数为被除数
+            result <= div_need_rem_r ? div_dividend_r : 32'hFFFF_FFFF;
           end else if (div_overflow_r) begin                                            // 有符号除法溢出时商为 0x8000_0000，余数为 0
             result <= div_need_rem_r ? 32'd0 : 32'h8000_0000;               
           end else if (div_need_rem_r) begin                            // 需要余数时输出余数（根据符号位决定是否取反）
