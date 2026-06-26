@@ -474,19 +474,39 @@ module myCPU (
   );
 
   // -------------------- MEM1 --------------------
-  assign perip_addr  = m1_alu_out;
-  assign perip_wen   = m1_mem_we;
+  // DRAM 提前读：MEM1 端口空闲时把 EX2 的 load 地址提前一拍送 BRAM，读延迟与
+  // 流水线重叠 —— 该 load 进 MEM1 只停 1 拍（配 latency-1 则 0 拍）。只读不写、
+  // EX2 非投机，安全。e2_dram_range 用 EX1 的 alu_raw 预算打拍，避免范围比较器
+  // 进 perip_addr 关键路径拖低 Fmax。
+  reg         e2_dram_range;
+  always @(posedge clk) begin
+    if (rst) e2_dram_range <= 1'b0;
+    else if (!stall_back) e2_dram_range <= (alu_raw >= 32'h8010_0000) && (alu_raw <= 32'h8013_FFFF);
+  end
+  wire        mem1_port_busy = m1_mem_re || m1_mem_we;
+  wire        early_read     = e2_mem_re && e2_dram_range && !mem1_port_busy;
+  reg         m1_early;       // 当前 MEM1 的 load 上一拍已在 EX2 提前读过
+  wire [1:0]  dram_need      = m1_early ? 2'd0 : 2'd1;   // 配 latency-1 BRAM：提前读0拍/普通1拍
+
+  assign perip_addr  = early_read ? e2_alu_out : m1_alu_out;
+  assign perip_wen   = m1_mem_we;     // 写只来自 MEM1；early_read 时 MEM1 必空闲 wen=0
   assign perip_mask  = m1_mem_width;
   assign perip_wdata = m1_rs2;
 
   assign dram_range  = (m1_alu_out >= 32'h8010_0000) && (m1_alu_out <= 32'h8013_FFFF);
-  assign dram_stall  = m1_mem_re && dram_range && (dram_wait_cnt < 2'd2);
+  assign dram_stall  = m1_mem_re && dram_range && (dram_wait_cnt < dram_need);
   assign stall_back  = dram_stall;
 
   always @(posedge clk) begin
     if (rst) dram_wait_cnt <= 2'd0;
-    else if (m1_mem_re && dram_range && dram_wait_cnt < 2'd2) dram_wait_cnt <= dram_wait_cnt + 2'd1;
+    else if (m1_mem_re && dram_range && dram_wait_cnt < dram_need) dram_wait_cnt <= dram_wait_cnt + 2'd1;
     else if (!stall_back) dram_wait_cnt <= 2'd0;
+  end
+
+  // m1_early 与 load 一起从 EX2 推进到 MEM1（与 ex2_mem1_reg 同步，停顿时保持）
+  always @(posedge clk) begin
+    if (rst) m1_early <= 1'b0;
+    else if (!stall_back) m1_early <= early_read;
   end
 
   assign mem_rdata = m1_mem_re ? (
