@@ -1,3 +1,8 @@
+// ============================================================================
+//  原版 gshare 分支预测器 —— 已用 /* */ 注释保留，当前【不生效】。
+// ============================================================================
+/*
+
 // module branch_predictor (
 //     input  clk,
 //     input  rst_n,
@@ -356,4 +361,37 @@ module branch_predictor #(
     end
   end
 
+endmodule
+*/
+
+
+//  当前：无预测器高频版
+// branch_predictor：恒预测 not-taken（无分支预测）。
+// 原 gshare 的组合查表落在 IF 的 PC 反馈环里、把超频卡在 ~166MHz；去掉后 PC 环
+module branch_predictor #(
+    parameter PC_WIDTH  = 32,
+    parameter BHT_SIZE  = 256,
+    parameter BHT_IDX_W = 8,
+    parameter RAS_DEPTH = 8,
+    parameter GHR_WIDTH = 8
+) (
+    input  wire                clk,
+    input  wire                rst,
+
+    // IF 阶段：预测接口
+    input  wire [PC_WIDTH-1:0] if_pc,
+    output wire                predict_taken,
+    output wire [PC_WIDTH-1:0] predict_target,
+
+    // EX2 阶段：训练接口（保留端口，恒不跳时不训练）
+    input  wire                ex_is_branch,
+    input  wire [1:0]          ex_instr_type,
+    input  wire [PC_WIDTH-1:0] ex_pc,
+    input  wire                ex_actual_taken,
+    input  wire [PC_WIDTH-1:0] ex_actual_target,
+    input  wire                stall_back
+);
+  // 恒预测 not-taken：PC 环路里不再有任何预测器组合逻辑。
+  assign predict_taken  = 1'b0;
+  assign predict_target = if_pc + 32'd4;   // 用不到，给默认值（顺序执行）
 endmodule
