@@ -1,6 +1,13 @@
-// 全局宏定义 7级流水线 RISC-V RV32I + Zicsr + M + Trap + B扩展槽位
+// 全局宏定义 —— 七级流水 RISC-V RV32I + M + Zicsr + Zba + Trap
 `ifndef __DEFINES_VH__
 `define __DEFINES_VH__
+// ---- 宏操作融合开关(fetch_frontend 用)----
+`ifndef FUSE_EN
+`define FUSE_EN 1'b1   // 宏操作融合总开关,置 0 回退纯双发取指
+`endif
+`ifndef FUSE_F2
+`define FUSE_F2 1'b1   // F2 移位加融合单独开关,时序不利时置 0
+`endif
 
 // ===== ALU 操作码（5 bit）=====
 `define ALU_ADD    5'd0   // 加法（ADD/ADDI/Load/Store地址/JAL/JALR）
@@ -16,14 +23,14 @@
 `define ALU_LUI    5'd10  // 直通B口（LUI：alu_out = imm）
 `define ALU_AUIPC  5'd11  // A+B（AUIPC：alu_a=pc, alu_b=imm）
 // ---- M 扩展（新增 8 条）----
-`define ALU_MUL    5'd12
-`define ALU_MULH   5'd13
-`define ALU_MULHSU 5'd14
-`define ALU_MULHU  5'd15
-`define ALU_DIV    5'd16
-`define ALU_DIVU   5'd17
-`define ALU_REM    5'd18
-`define ALU_REMU   5'd19
+`define ALU_MUL    5'd12  // 乘法低32位
+`define ALU_MULH   5'd13  // 乘法高32位（有符号×有符号）
+`define ALU_MULHSU 5'd14  // 乘法高32位（有符号×无符号）
+`define ALU_MULHU  5'd15  // 乘法高32位（无符号×无符号）
+`define ALU_DIV    5'd16  // 有符号除法
+`define ALU_DIVU   5'd17  // 无符号除法（除零返回全1）
+`define ALU_REM    5'd18  // 有符号取余
+`define ALU_REMU   5'd19  // 无符号取余（除零返回被除数）
 // ---- Zicsr / Trap 走 ALU 直通 ----
 `define ALU_CSR    5'd20  // CSR 读出值直通到 rd
 // ---- 现场 B 扩展槽位（编码到 31，留给比赛当天）----
@@ -43,7 +50,7 @@
 `define CAUSE_ECALL_M 32'd11   // M 模式 ecall
 
 // ===== M 模式 CSR 地址 =====
-`define CSR_MSTATUS    12'h300
+`define CSR_MSTATUS    12'h300   // RISC-V 特权规范规定
 `define CSR_MTVEC      12'h305
 `define CSR_MSCRATCH   12'h340
 `define CSR_MEPC       12'h341
@@ -64,12 +71,15 @@
 `define WB_MEM  2'd1     // 写回Load数据（mem_rdata）
 `define WB_PC4  2'd2     // 写回PC+4（JAL/JALR返回地址）
 
-// 转发来源选择（3bit，5选1）
-`define FWD_NONE 3'd0    // 不转发，使用寄存器文件读出值
-`define FWD_EX2  3'd1    // 从EX2阶段转发（ex1_ex2_reg.alu_out）
-`define FWD_MEM1 3'd2    // 从MEM1阶段转发（ex2_mem1_reg.alu_out）
-`define FWD_MEM2 3'd3    // 从MEM2阶段转发（mem1_mem2_reg，含Load数据）
-`define FWD_WB   3'd4    // 从WB阶段转发（wb_data）
+// 转发来源选择(3bit)
+`define FWD_NONE 3'd0    // 不转发,用寄存器堆读出值
+`define FWD_EX2  3'd1    // EX2 的 ALU 结果(e2_alu_out)
+`define FWD_MEM1 3'd2    // MEM1 预选寄存器(mem1_fwd_reg)
+`define FWD_WB_ALU 3'd3  // WB 的 ALU 结果(w_alu_out)
+// 3'd4 空置(原 FWD_WB,已删)
+`define FWD_EX2P 3'd5    // EX2 的 pc+4(jal/jalr 链接值)
+`define FWD_WB_MEM 3'd6  // WB 的 Load 数据(w_mem_rdata)
+`define FWD_WB_PC4 3'd7  // WB 的 pc+4(w_pc4)
 
 // 访存宽度
 `define MEM_BYTE 2'd0    // 字节（8位）
