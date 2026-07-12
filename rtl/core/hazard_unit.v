@@ -1,58 +1,60 @@
 `include "../include/defines.vh"
-// 检测两类冲突：
-//   1. Load-Use 冲突：load指令与ID阶段指令的源寄存器重叠
-//      → 停顿IF/ID，冲刷ID/EX1插入气泡，直到load到达MEM2可转发
-//   2. 分支/跳转：EX2阶段解析跳转 → 冲刷IF/ID和ID/EX1的两条错误路径指令
+// 检测 Load-Use 冲突： load(或流水化乘法)与 ID 阶段指令的源寄存器
+// 重叠时，停顿前端、向 EX1 插入气泡，直到数据可转发为止
+// store-buffer / L0 提前查表等快速路径命中的 load 数据提前就绪，相应少停或不停
+// 跳转改向的冲刷由顶层误预测信号统一驱动,本模块只管停顿,不管冲刷
 module hazard_unit (
-    // ID阶段——消费者（被检测是否依赖in-flight load）
+    // ID阶段——后续指令（被检测是否依赖in-flight load）
     input  wire [ 4:0] rs1_id,          // ID阶段rs1地址
     input  wire [ 4:0] rs2_id,          // ID阶段rs2地址
     input  wire        rs1_en,          // ID指令是否真正使用rs1
     input  wire        rs2_en,          // ID指令是否真正使用rs2
 
-    // EX1阶段——load在此阶段，数据3拍后到MEM2
+    // EX1阶段——load在此阶段，数据3拍后到WB
     input  wire [ 4:0] e1_rd_addr,
     input  wire        e1_mem_re,       // EX1是否为load指令
+    input  wire        e1_is_mul,       // 流水化乘法,结果就绪时机与 load 同形(两级后才可转发)
+    input  wire        d1_hit,       // EX1 的 load 已提前查缓冲命中(数据下拍即可转发)→不停
 
-    // EX2阶段——load在此阶段，数据2拍后到MEM2
+    // EX2阶段——load在此阶段，数据2拍后到WB
     input  wire [ 4:0] e2_rd_addr,
     input  wire        e2_mem_re,
+    input  wire        e2_ld_ok,       // EX2 的 load 数据下拍在 MEM1 就能转发(缓冲命中/直传/投机读),不必停顿
+    input  wire        e2_is_pmul,      // 流水化乘法在 EX2
 
     // MEM1阶段——load在此阶段，dram_driver寄存器使数据延迟1拍
     input  wire [ 4:0] m1_rd_addr,
     input  wire        m1_mem_re,
-    input  wire        dram_stall,      // DRAM停顿时数据未到MEM2，仍需暂停
+    input  wire        dram_stall,      // DRAM停顿时数据未到WB，仍需暂停
 
-    // EX2阶段PC控制——分支/跳转在此阶段解析
-    input  wire        e2_pc_sel,       // 分支条件满足 或 无条件跳转
-    output wire        stall,           // 停顿IF/ID（冻结PC和IF/ID寄存器）
-    output wire        flush_if_id,     // 冲刷IF/ID（分支跳转时清除紧跟的指令）
-    output wire        flush_id_ex1     // 冲刷ID/EX1（插入气泡 或 清除第二条错误指令）
+    output wire        stall            // 停顿IF/ID（冻结PC和IF/ID寄存器）
 );
 
-    // Load-Use：仅检查rs1和真正使用rs2的指令
-    wire rs1_match_ex1  = rs1_en && e1_mem_re && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs1_id);
-    wire rs2_match_ex1  = rs2_en && e1_mem_re && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs2_id);
+    // Load-Use:只对真正使用 rs1/rs2 的指令检查对应源寄存器(乘法按 load 同形规则参与;提前命中的免停)
+    wire e1_lat_op = (e1_mem_re && !d1_hit) || e1_is_mul;
+    wire rs1_match_ex1  = rs1_en && e1_lat_op && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs1_id);
+    wire rs2_match_ex1  = rs2_en && e1_lat_op && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs2_id);
     wire load_use_ex1   = rs1_match_ex1 || rs2_match_ex1;
 
-    wire rs1_match_ex2  = rs1_en && e2_mem_re && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs1_id);
-    wire rs2_match_ex2  = rs2_en && e2_mem_re && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs2_id);
+    wire e2_lat_op = (e2_mem_re && !e2_ld_ok) || e2_is_pmul;   // 数据下一拍就有的不用停,从MEM1那排寄存器转发即可
+    wire rs1_match_ex2  = rs1_en && e2_lat_op && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs1_id);
+    wire rs2_match_ex2  = rs2_en && e2_lat_op && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs2_id);
     wire load_use_ex2   = rs1_match_ex2 || rs2_match_ex2;
 
-    // Latency=2: load在MEM1且stall活跃时数据未到MEM2，仍需停顿
+    // 慢路径load(没赶上提前读,dram_stall亮):它到MEM1才发地址,数据还差2拍才能转发
+
     wire rs1_match_m1  = rs1_en && m1_mem_re && dram_stall && (m1_rd_addr != 5'd0) && (m1_rd_addr == rs1_id);
     wire rs2_match_m1  = rs2_en && m1_mem_re && dram_stall && (m1_rd_addr != 5'd0) && (m1_rd_addr == rs2_id);
     wire load_use_mem1 = rs1_match_m1 || rs2_match_m1;
 
     wire load_use = load_use_ex1 || load_use_ex2 || load_use_mem1;
 
+    // 停顿归因(按来源拆;再分 load/mul)
+    wire e1_ld_only  = e1_mem_re && !d1_hit;
+    wire e1_match_any = rs1_match_ex1 || rs2_match_ex1;
+    wire e2_match_any = rs1_match_ex2 || rs2_match_ex2;
+
     // 停顿前端load-use时冻结IF/ID，防止依赖指令进入EX1
     assign stall = load_use;
-
-    // 冲刷IF/ID：分支跳转时，PC+4处取出的指令是错的
-    assign flush_if_id = e2_pc_sel;
-
-    // 冲刷ID/EX1：load-use插入气泡或分支跳转清除第二条错误指令
-    assign flush_id_ex1 = load_use || e2_pc_sel;
 
 endmodule

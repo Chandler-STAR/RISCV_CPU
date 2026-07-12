@@ -23,7 +23,8 @@ module ctrl (
     output reg         is_mret_d,    // 当前是 mret
     output reg         is_mul_d,     // 当前是 M 扩展的 mul* 类
     output reg         is_div_d,     // 当前是 M 扩展的 div*/rem* 类
-    output reg         use_pc_d      // EX1 的 alu_a 0 
+    output reg         use_pc_d      // EX1 的 alu_a 选 PC(AUIPC/分支/JAL),ID 预译码
+);
 
   localparam TYPE_BRANCH = 2'b00;
   localparam TYPE_JUMP = 2'b01;

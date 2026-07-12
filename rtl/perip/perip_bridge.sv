@@ -25,10 +25,12 @@ module perip_bridge(
     input  logic         rst                ,
 
     input  logic [31:0]  perip_addr			,
+    input  logic [31:0]  perip_raddr		,   // DRAM 读口独立地址,仅透传给 dram_driver
     input  logic [31:0]  perip_wdata		,
     input  logic         perip_wen			,
 	input  logic [1:0]	 perip_mask			,
     output logic [31:0]  perip_rdata		,
+    output logic [31:0]  perip_rdram		,   // DRAM 读口原始数据透传
 
     input  logic [63:0]  virtual_sw_input	,
     input  logic [7:0]   virtual_key_input	,	
@@ -111,6 +113,8 @@ module perip_bridge(
     dram_driver dram_driver_inst (
         .clk				(clk),
         .perip_addr			(perip_addr[17:0]),
+        .perip_raddr		(perip_raddr[17:0]),
+        .perip_rdram		(perip_rdram),
         .perip_wdata		(perip_wdata),
         .perip_mask			(perip_mask),
         .dram_wen 			(perip_wen & (perip_addr >= DRAM_ADDR_START && perip_addr < DRAM_ADDR_END)),
@@ -126,12 +130,17 @@ module perip_bridge(
         .perip_rdata		(cnt_rdata)
     );
 
-    assign perip_rdata = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SW1_ADDR}} & mmio_rdata |
-                        {32{perip_addr == KEY_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SEG_ADDR}} & mmio_rdata |
-                        {32{perip_addr >= DRAM_ADDR_START && perip_addr < DRAM_ADDR_END}} & dram_rdata |
-                        {32{perip_addr == CNT_ADDR}} & cnt_rdata;
+    // DRAM 读数据是最迟到达的慢信号,让它只过一个 2:1 选择器直达输出;
+    //   MMIO(SW/KEY/SEG/CNT)都是寄存器源、提前就绪,先用与-或树并成一路,
+    //   再与 DRAM 数据二选一。选择信号来自已寄存的地址,同样提前就绪。
+    //   地址映射:DRAM 区→dram_rdata;各外设→对应寄存器;未命中地址→0。
+    wire        is_dram_rd   = (perip_addr >= DRAM_ADDR_START && perip_addr < DRAM_ADDR_END);
+    wire [31:0] mmio_combined = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
+                               {32{perip_addr == SW1_ADDR}} & mmio_rdata |
+                               {32{perip_addr == KEY_ADDR}} & mmio_rdata |
+                               {32{perip_addr == SEG_ADDR}} & mmio_rdata |
+                               {32{perip_addr == CNT_ADDR}} & cnt_rdata;
+    assign perip_rdata = is_dram_rd ? dram_rdata : mmio_combined;
     
     assign virtual_led_output = LED;
     assign virtual_seg_output = seg_output;
