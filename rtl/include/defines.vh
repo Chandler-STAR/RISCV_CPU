@@ -1,8 +1,8 @@
 // 全局宏定义 —— 七级流水 RISC-V RV32I + M + Zicsr + Zba + Trap
 `ifndef __DEFINES_VH__
 `define __DEFINES_VH__
-// ---- 宏操作融合开关(fetch_frontend 用)----
-`ifndef FUSE_EN
+// ---- 宏操作融合开关(取指部分用)----
+`ifndef FUSE_EN         //fuse（融合），macro-fuse（宏操作融合）
 `define FUSE_EN 1'b1   // 宏操作融合总开关,置 0 回退纯双发取指
 `endif
 `ifndef FUSE_F2
@@ -50,7 +50,7 @@
 `define CAUSE_ECALL_M 32'd11   // M 模式 ecall
 
 // ===== M 模式 CSR 地址 =====
-`define CSR_MSTATUS    12'h300   // RISC-V 特权规范规定
+`define CSR_MSTATUS    12'h300   // RISC-V 特权规范规定,参考https://docs.riscv.org/reference/isa/v20260120/priv/priv-csrs.html
 `define CSR_MTVEC      12'h305
 `define CSR_MSCRATCH   12'h340
 `define CSR_MEPC       12'h341

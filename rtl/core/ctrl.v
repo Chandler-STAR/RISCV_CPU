@@ -13,7 +13,7 @@ module ctrl (
     output reg  [ 4:0] alu_op_d,     // ALU 操作码
     output reg  [ 1:0] mem_width_d,  // 访存宽度
     output reg         mem_sign_d,   // Load 符号扩展
-    output reg  [ 1:0] instr_type,    // 指令类型：00=Branch, 01=Jump, 10=Call, 11=Ret
+    output reg  [ 1:0] instr_type_d,    // 指令类型：00=Branch, 01=Jump, 10=Call, 11=Ret
 
     // === Zicsr / Trap / M / B 扩展新增端口 ===
     output reg         is_csr_d,     // 当前是 zicsr 指令
@@ -23,8 +23,7 @@ module ctrl (
     output reg         is_mret_d,    // 当前是 mret
     output reg         is_mul_d,     // 当前是 M 扩展的 mul* 类
     output reg         is_div_d,     // 当前是 M 扩展的 div*/rem* 类
-    output reg         is_bext_d     // 现场添加的 B 扩展指令命中
-);
+    output reg         use_pc_d      // EX1 的 alu_a 0 
 
   localparam TYPE_BRANCH = 2'b00;
   localparam TYPE_JUMP = 2'b01;
@@ -57,7 +56,7 @@ module ctrl (
     alu_op_d    = `ALU_ADD;
     mem_width_d = `MEM_WORD;
     mem_sign_d  = 1'b1;
-    instr_type = TYPE_BRANCH;  // 默认类型为分支，后续根据指令覆盖
+    instr_type_d = TYPE_BRANCH;  // 默认类型为分支，后续根据指令覆盖
     //给新增的控制信号赋默认值
     is_csr_d   = 1'b0;
     csr_op_d   = `CSR_OP_NONE;
@@ -66,7 +65,7 @@ module ctrl (
     is_mret_d  = 1'b0;
     is_mul_d   = 1'b0;
     is_div_d   = 1'b0;
-    is_bext_d  = 1'b0;
+    use_pc_d   = 1'b0;   // 默认 alu_a=rs1（转发后）
 
     case (opcode)
 
@@ -87,19 +86,31 @@ module ctrl (
             3'b110: begin alu_op_d = `ALU_REM;    is_div_d = 1'b1; end
             3'b111: begin alu_op_d = `ALU_REMU;   is_div_d = 1'b1; end
           endcase
+        end else if (funct7 == 7'b0010000) begin
+          // ---- Zba 移位加(sh1add/sh2add/sh3add):真实 B 扩展编码,
+          //      同时是 slli+add 宏融合的执行形态(取指端把指令对改写成此编码)----
+          case (funct3)
+            3'b010:  alu_op_d = `ALU_BEXT0;  // sh1add:(rs1<<1)+rs2
+            3'b100:  alu_op_d = `ALU_BEXT1;  // sh2add:(rs1<<2)+rs2
+            3'b110:  alu_op_d = `ALU_BEXT2;  // sh3add:(rs1<<3)+rs2
+            default: alu_op_d = `ALU_ADD;
+          endcase
         end else begin
-          // ---- 原 RV32I R 型译码 ----
-        case (funct3)
-          3'b000:  alu_op_d = f7b5 ? `ALU_SUB : `ALU_ADD;  // ADD/SUB
-          3'b001:  alu_op_d = `ALU_SLL;  // SLL
-          3'b010:  alu_op_d = `ALU_SLT;  // SLT
-          3'b011:  alu_op_d = `ALU_SLTU;  // SLTU
-          3'b100:  alu_op_d = `ALU_XOR;  // XOR
-          3'b101:  alu_op_d = f7b5 ? `ALU_SRA : `ALU_SRL;  // SRL/SRA
-          3'b110:  alu_op_d = `ALU_OR;  // OR
-          3'b111:  alu_op_d = `ALU_AND;  // AND
-          default: alu_op_d = `ALU_ADD;
-        endcase
+          // ---- RV32I R型:funct7+funct3十位精确译码,没列出的编码一律落default ----
+          // 现场加B指令 = 照样子加一行,例: {7'b0000101,3'b110}: alu_op_d = `ALU_BEXT3; // max
+          case ({funct7, funct3})
+            {7'b0000000,3'b000}: alu_op_d = `ALU_ADD;   // ADD
+            {7'b0100000,3'b000}: alu_op_d = `ALU_SUB;   // SUB
+            {7'b0000000,3'b001}: alu_op_d = `ALU_SLL;   // SLL
+            {7'b0000000,3'b010}: alu_op_d = `ALU_SLT;   // SLT
+            {7'b0000000,3'b011}: alu_op_d = `ALU_SLTU;  // SLTU
+            {7'b0000000,3'b100}: alu_op_d = `ALU_XOR;   // XOR
+            {7'b0000000,3'b101}: alu_op_d = `ALU_SRL;   // SRL
+            {7'b0100000,3'b101}: alu_op_d = `ALU_SRA;   // SRA
+            {7'b0000000,3'b110}: alu_op_d = `ALU_OR;    // OR
+            {7'b0000000,3'b111}: alu_op_d = `ALU_AND;   // AND
+            default:             alu_op_d = `ALU_ADD;   // 未定义编码(本核无非法指令异常)
+          endcase
         end
       end
       
@@ -115,8 +126,11 @@ module ctrl (
           3'b100:  alu_op_d = `ALU_XOR;  // XORI
           3'b110:  alu_op_d = `ALU_OR;  // ORI
           3'b111:  alu_op_d = `ALU_AND;  // ANDI
-          3'b001:  alu_op_d = `ALU_SLL;  // SLLI
-          3'b101:  alu_op_d = f7b5 ? `ALU_SRA : `ALU_SRL;  // SRLI/SRAI
+          // 移位类(001/101)的instr[31:25]才是funct7,精确比;其余funct3那里是立即数高位
+          // 现场加B指令(如rori,funct3=101,funct7=0110000)= 在对应行加一个判断
+          3'b001:  alu_op_d = (funct7 == 7'b0000000) ? `ALU_SLL : `ALU_ADD;   // SLLI
+          3'b101:  alu_op_d = (funct7 == 7'b0000000) ? `ALU_SRL :
+                              (funct7 == 7'b0100000) ? `ALU_SRA : `ALU_ADD;   // SRLI/SRAI
           default: alu_op_d = `ALU_ADD;
         endcase
       end
@@ -175,6 +189,7 @@ module ctrl (
         rs1_en_d  = 1'b1;
         alu_src_d = 1'b1;  // alu_b = imm
         alu_op_d  = `ALU_ADD;
+        use_pc_d  = 1'b1;  // 分支目标 = pc + imm
       end
 
       // ══ JAL ══════════════════════════════
@@ -184,7 +199,8 @@ module ctrl (
         alu_src_d  = 1'b1;
         wb_sel_d   = `WB_PC4;
         alu_op_d   = `ALU_ADD;  // 目标 = pc + imm（alu_a=pc 在顶层处理）
-        instr_type = rd_is_link ? TYPE_CALL : TYPE_JUMP;
+        use_pc_d   = 1'b1;      // JAL 目标 = pc + imm
+        instr_type_d = rd_is_link ? TYPE_CALL : TYPE_JUMP;
       end
 
       // ══ JALR ═════════════════════════════
@@ -197,13 +213,13 @@ module ctrl (
         alu_op_d = `ALU_ADD;  // 目标 = rs1 + imm（bit0 在顶层清零）
         if (rd_is_link) begin
           // 情况 1: jalr x1, rs1, 0 -> 这是一个 Call
-          instr_type = TYPE_CALL;
+          instr_type_d = TYPE_CALL;
         end else if (rs1_is_link && rd == 5'd0) begin
           // 情况 2: jalr x0, x1, 0 -> 这是一个 Return (ret)
-          instr_type = TYPE_RET;
+          instr_type_d = TYPE_RET;
         end else begin
           // 情况 3: 普通的间接跳转
-          instr_type = TYPE_JUMP;
+          instr_type_d = TYPE_JUMP;
         end
       end
 
@@ -219,6 +235,7 @@ module ctrl (
         reg_we_d  = 1'b1;
         alu_src_d = 1'b1;
         alu_op_d  = `ALU_AUIPC;  // alu_a=pc 在顶层处理
+        use_pc_d  = 1'b1;        // AUIPC: alu_a = pc
       end
 
       // ══ SYSTEM (Zicsr / ECALL / MRET) ════
@@ -252,13 +269,10 @@ module ctrl (
         endcase
       end
 
-      // ══ B 扩展现场槽位（保留模板，比赛当天补充编码）═══
-      // 模板：
-      // if (opcode == 7'bxxxxxxx && funct3 == 3'bxxx && funct7 == 7'bxxxxxxx) begin
-      //     reg_we_d = 1'b1; rs1_en_d = 1'b1; rs2_en_d = 1'b1;
-      //     alu_op_d = `ALU_BEXT0;
-      //     is_bext_d = 1'b1;
-      // end
+      // B扩展现场槽位:决赛要加的zba/zbb/zbc/zbs/zbkb/zbkx指令往这里填
+      // R型译码已是funct7+funct3十位精确匹配 —— 加一条R型B指令就是往case里
+      // 参考注释
+
 
       default: ;  // NOP / 未定义：保持默认
     endcase

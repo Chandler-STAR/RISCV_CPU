@@ -1,8 +1,8 @@
 `include "../include/defines.vh"
 // store_buffer: 4项小缓冲,记最近写过的字地址和数据
 // load的地址撞上了就直接给数,不用等存储器读回,后面的指令少停一拍
-// 数据同时也写进了存储器(写穿),两边永远一致,所以命中只会更快不会错
-// 只记整字的写;字节/半字写到同地址就把那一项作废,免得数据不完整
+// 数据同时也写进了存储器
+// 只做了字的缓存！
 module store_buffer #(
     parameter N = 8,
     parameter AW = 16            // DRAM 字地址位宽 = addr[17:2]
@@ -23,7 +23,7 @@ module store_buffer #(
     output wire [31:0]    ld_data,
 
     // ---- 第二查找口(EX1 组合查找,地址来自译码级预测并打拍) ----
-    // 裸命中/数据;使能与新鲜度护栏(同拍 MEM1 store / EX2 更老 store)由外部把关。
+    // 只管报命中和给数;能不能用(同拍有store在写这类情况)由外面判断。
     input  wire [AW-1:0]  ld2_raddr,
     output wire           ld2_hit,
     output wire [31:0]    ld2_data
@@ -86,7 +86,7 @@ module store_buffer #(
     assign ld_hit  = ld_en && hit_c && !inflight_haz;
     assign ld_data = data_c;
 
-    // ---- 第二查找口:纯组合匹配(新鲜度护栏由外部负责) ----
+    // ---- 第二个查找口:纯组合匹配(能不能用由外面判断) ----
     reg              hit2_c;
     reg  [31:0]      data2_c;
     always @(*) begin
