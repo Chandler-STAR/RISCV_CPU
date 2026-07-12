@@ -30,14 +30,20 @@ module id_ex1_reg (
     input  wire [ 1:0] instr_type_in,      // 输出到EX1阶段
     
     // Zicsr / Trap / M / B 扩展新增端口
-    input  wire        is_csr_in,
-    input  wire [ 1:0] csr_op_in,
-    input  wire        csr_uimm_in,
+    input  wire        is_csr_in,          
+    input  wire [ 1:0] csr_op_in,               
+    input  wire        csr_uimm_in,     
     input  wire        is_ecall_in,
     input  wire        is_mret_in,
     input  wire        is_mul_in,
     input  wire        is_div_in,
-    input  wire        is_bext_in,
+    input  wire        use_pc_in,          // alu_a 选 PC（AUIPC/Branch/JAL）—ID预译码
+    input  wire        fused_in,           // 宏操作融合标志:本条由两条熔成,指令计数按2条算
+    input  wire        valid_in,           // 这一格装的是真指令,不是流水线气泡
+    // 转发选择：在 ID 就算好（针对 EX1 周期的前序指令，有效性前推一级），打拍到 EX1，
+    // 把转发比较移出 EX1 关键路径（forward→ALU 深路径的主因）
+    input  wire [ 2:0] fwd_a_in,
+    input  wire [ 2:0] fwd_b_in,
 
     // 输出全部打一拍
     output reg  [31:0] e1_pc,
@@ -69,7 +75,11 @@ module id_ex1_reg (
     output reg         e1_is_mret,
     output reg         e1_is_mul,
     output reg         e1_is_div,
-    output reg         e1_is_bext
+    output reg         e1_use_pc,          // alu_a 选 PC（已打拍，喂 EX1 的 alu_a mux）
+    output reg         e1_fused,
+    output reg  [ 2:0] e1_fwd_a,           // EX1 直接用的转发选择（已打拍）
+    output reg  [ 2:0] e1_fwd_b,
+    output reg         e1_valid
 );
 
   always @(posedge clk) begin
@@ -103,7 +113,11 @@ module id_ex1_reg (
       e1_is_mret        <= 1'b0;
       e1_is_mul         <= 1'b0;
       e1_is_div         <= 1'b0;
-      e1_is_bext        <= 1'b0;
+      e1_use_pc         <= 1'b0;
+      e1_fused          <= 1'b0;
+      e1_valid          <= 1'b0;        // 冲刷/复位插入的就是气泡
+      e1_fwd_a          <= `FWD_NONE;   // 冲刷/复位=气泡，不转发
+      e1_fwd_b          <= `FWD_NONE;
 
     end else
     if (stall) begin
@@ -136,7 +150,11 @@ module id_ex1_reg (
       e1_is_mret        <= is_mret_in;
       e1_is_mul         <= is_mul_in;
       e1_is_div         <= is_div_in;
-      e1_is_bext        <= is_bext_in;
+      e1_use_pc         <= use_pc_in;
+      e1_fused          <= fused_in;
+      e1_valid          <= valid_in;
+      e1_fwd_a          <= fwd_a_in;
+      e1_fwd_b          <= fwd_b_in;
     end
   end
 
