@@ -33,6 +33,8 @@ module myCPU (
 
   // IF/ID 寄存器输出
   wire [31:0] d_pc, d_pc4, d_instr;
+  wire d_predict_taken;
+  wire [31:0] d_predict_target;
 
   // ID模块输出
   wire [4:0] rs1_addr, rs2_addr, rd_addr_d;
@@ -71,6 +73,15 @@ module myCPU (
 
   wire [31:0] wd;
 
+  //分支预测
+  wire        predict_taken;
+  wire [31:0] predict_target;
+  wire        predict_direction_wrong;
+  wire        predict_target_wrong;
+  wire        predict_wrong;
+  wire        e_predict_taken;
+  wire [31:0] e_predict_target;
+
   // ====================== 外部总线连接 ======================
   assign irom_addr = pc;
   wire [31:0] instr_if = irom_data;
@@ -106,17 +117,27 @@ module myCPU (
 
   // 3. 【修改】BranchComp 模块移至此处 (使用 EX 阶段的前递值)
   branch_comp u_branch_comp (
-      .rs1_bc      (alu_a_fwd),       // 使用 EX 段前递后的 rs1 值
-      .rs2_bc      (alu_b_rs2),       // 使用 EX 段前递后的 rs2 值
-      .funct3_d    (e_instr[14:12]),  // 使用 EX 段的指令字段
-      .branch_taken(branch_taken_ex)  // 输出 EX 阶段的比较结果
+      .rs1_bc                 (alu_a_fwd),               // 使用 EX 段前递后的 rs1 值
+      .rs2_bc                 (alu_b_rs2),               // 使用 EX 段前递后的 rs2 值
+      .funct3_d               (e_instr[14:12]),          // 使用 EX 段的指令字段
+      .e_branch               (e_branch),                // EX 阶段的 branch 信号
+      .branch_taken           (branch_taken_ex),         // 输出 EX 阶段的比较结果
+      .predict_taken_in       (e_predict_taken),         // 来自分支预测器的预测结果
+      .predict_direction_wrong(predict_direction_wrong)  // 预测是否正确的信号
   );
 
   // 4. 跳转与分支逻辑 (在 EX 段计算 pc_sel)
+
+
   assign pc_branch = (e_instr[6:0] == 7'b110_0111) ? {alu_out[31:1], 1'b0} : alu_out;
   assign pc_sel = (e_branch & branch_taken_ex) | e_jump;
-  assign pc_next = pc_sel ? pc_branch : pc4;
-
+  //判断错误：依据ex的pc_sel判断跳转；判断正确：直接跳转或不跳转
+  assign pc_next = predict_wrong ? (pc_sel ? pc_branch : e_pc4) : (predict_taken ? predict_target : pc4);
+  //跳转地址正误判断
+  assign predict_target_wrong = e_branch && (e_predict_target != pc_branch);
+  // 只要预测方向错误或目标地址错误，就认为预测失败，J型指令直接判失败不预测
+  //predict_direction_wrong由 branch_comp 产生，predict_target_wrong 由 EX 阶段的实际跳转目标与预测目标比较产生
+  assign predict_wrong = predict_direction_wrong || predict_target_wrong || e_jump;
   // ====================== WB 阶段逻辑 ======================
   assign wd = (w_wb_sel == `WB_ALU) ? w_alu_out : (w_wb_sel == `WB_MEM) ? w_mem_rdata : w_pc4;
 
@@ -140,7 +161,11 @@ module myCPU (
       .stall(stall),
       .flush_if_id(flush_if_id),
       .d_pc(d_pc),
-      .d_pc4(d_pc4)
+      .d_pc4(d_pc4),
+      .predict_taken_in(predict_taken),
+      .predict_target_in(predict_target),
+      .d_predict_taken(d_predict_taken),
+      .d_predict_target(d_predict_target)
   );
 
   imm_gen u_imm_gen (
@@ -174,43 +199,48 @@ module myCPU (
   );
 
   id_ex_reg u_id_ex_reg (
-      .clk(clk),
-      .rst(rst),
-      .flush_id_ex(flush_id_ex),
-      .pc_in(d_pc),
-      .pc4_in(d_pc4),
-      .instr_in(d_instr),
-      .rs1_in(rs1_rf),
-      .rs2_in(rs2_rf),
-      .imm_in(imm),
-      .rd_addr_in(rd_addr_d),
-      .reg_we_in(reg_we_d),
-      .mem_we_in(mem_we_d),
-      .mem_re_in(mem_re_d),
-      .branch_in(branch_d),
-      .jump_in(jump_d),
-      .alu_src_in(alu_src_d),
-      .mem_sign_in(mem_sign_d),
-      .wb_sel_in(wb_sel_d),
-      .mem_width_in(mem_width_d),
-      .alu_op_in(alu_op_d),
-      .e_pc(e_pc),
-      .e_pc4(e_pc4),
-      .e_instr(e_instr),
-      .e_rs1(e_rs1),
-      .e_rs2(e_rs2),
-      .e_imm(e_imm),
-      .e_rd_addr(e_rd_addr),
-      .e_reg_we(e_reg_we),
-      .e_mem_we(e_mem_we),
-      .e_mem_re(e_mem_re),
-      .e_branch(e_branch),
-      .e_jump(e_jump),
-      .e_alu_src(e_alu_src),
-      .e_mem_sign(e_mem_sign),
-      .e_wb_sel(e_wb_sel),
-      .e_mem_width(e_mem_width),
-      .e_alu_op(e_alu_op)
+      .clk              (clk),
+      .rst              (rst),
+      .flush_id_ex      (flush_id_ex),
+      .pc_in            (d_pc),
+      .pc4_in           (d_pc4),
+      .instr_in         (d_instr),
+      .rs1_in           (rs1_rf),
+      .rs2_in           (rs2_rf),
+      .imm_in           (imm),
+      .rd_addr_in       (rd_addr_d),
+      .reg_we_in        (reg_we_d),
+      .mem_we_in        (mem_we_d),
+      .mem_re_in        (mem_re_d),
+      .branch_in        (branch_d),
+      .jump_in          (jump_d),
+      .alu_src_in       (alu_src_d),
+      .mem_sign_in      (mem_sign_d),
+      .wb_sel_in        (wb_sel_d),
+      .mem_width_in     (mem_width_d),
+      .alu_op_in        (alu_op_d),
+      .e_pc             (e_pc),
+      .e_pc4            (e_pc4),
+      .e_instr          (e_instr),
+      .e_rs1            (e_rs1),
+      .e_rs2            (e_rs2),
+      .e_imm            (e_imm),
+      .e_rd_addr        (e_rd_addr),
+      .e_reg_we         (e_reg_we),
+      .e_mem_we         (e_mem_we),
+      .e_mem_re         (e_mem_re),
+      .e_branch         (e_branch),
+      .e_jump           (e_jump),
+      .e_alu_src        (e_alu_src),
+      .e_mem_sign       (e_mem_sign),
+      .e_wb_sel         (e_wb_sel),
+      .e_mem_width      (e_mem_width),
+      .e_alu_op         (e_alu_op),
+      .e_predict_taken  (e_predict_taken),   // 传递预测结果到 EX 段
+      .e_predict_target (e_predict_target),  // 传递预测目标到 EX 段
+      .predict_taken_in (d_predict_taken),
+      .predict_target_in(d_predict_target)
+
   );
 
   alu u_alu (
@@ -279,14 +309,27 @@ module myCPU (
   );
 
   hazard_unit u_hazard (
-      .instr_id   (d_instr),
-      .instr_ex   (e_instr),
-      .mem_re_ex  (e_mem_re),
-      .reg_we_ex  (e_reg_we),
-      .pc_sel     (pc_sel),       // 这里传入的是从 EX 计算出来的 pc_sel
-      .stall      (stall),
-      .flush_if_id(flush_if_id),
-      .flush_id_ex(flush_id_ex)
+      .instr_id     (d_instr),
+      .instr_ex     (e_instr),
+      .mem_re_ex    (e_mem_re),
+      .reg_we_ex    (e_reg_we),
+      .pc_sel       (pc_sel),         // 来自 EX 阶段的最终跳转决策信号
+      .predict_wrong(predict_wrong),  // 传递预测错误信号到 Hazard Unit
+      .stall        (stall),
+      .flush_if_id  (flush_if_id),
+      .flush_id_ex  (flush_id_ex)
+  );
+
+  branch_predictor u_branch_predictor (
+      .clk             (clk),
+      .rst             (rst),
+      .if_pc           (pc),
+      .predict_taken   (predict_taken),
+      .predict_target  (predict_target),
+      .ex_is_branch    (e_branch),
+      .ex_pc           (e_pc),
+      .ex_actual_taken (branch_taken_ex),
+      .ex_actual_target(pc_branch)
   );
 
 endmodule

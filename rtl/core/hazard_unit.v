@@ -1,85 +1,60 @@
-/* `include "../include/defines.vh"
-
-module hazard_unit (
-    input  wire [31:0] instr_id,     // ID 级指令
-    input  wire [31:0] instr_ex,     // EX 级指令
-    input  wire        mem_re_ex,    // EX 级 Load 标志
-    input  wire        pc_sel,       // 分支/跳转决策（顶层）
-    output wire        stall,        // =1: PC 和 IF/ID 保持
-    //output wire        flush,        // =1: ID/EX 清零
-    output wire        flush_if_id,  // 【新增】专给 IF/ID 的清空信号
-    output wire        flush_id_ex,  // 【新增】专给 ID/EX 的清空信号
-    input  wire        reg_we_ex     // 【新增】EX 级寄存器写使能（用于分支冒险）
-);
-  //字段提取
-  wire [4:0] rs1_id = instr_id[19:15];
-  wire [4:0] rs2_id = instr_id[24:20];
-  wire [4:0] rd_ex = instr_ex[11:7];
-
-  // Load-Use：EX 是 Load 且 rd 与 ID 的 rs 重叠
-  wire load_use = mem_re_ex && (rd_ex != 5'd0) && ((rd_ex == rs1_id) || (rd_ex == rs2_id));
-
-  // 2. 分支数据冒险检测（Branch Data Hazard）
-  // 如果 ID 阶段是分支/跳转指令，且它依赖的寄存器正被 EX 阶段计算，必须 Stall
-  //wire is_J = (instr_id[6:0] == 7'b110_1111) | (instr_id[6:0] == 7'b110_0111);  // JAL|JALR
-  wire is_JAL = instr_id[6:0] == 7'b110_1111;  // JAL
-  wire is_JALR = instr_id[6:0] == 7'b110_0111;  // JALR
-  wire is_branch_id = (instr_id[6:0] == 7'b110_0011) | is_JAL | is_JALR;  // BEQ|BNE|BLT|BGE|BLTU|BGEU|JAL|JALR
-
-  wire branch_hazard = is_branch_id && reg_we_ex && (rd_ex != 5'd0) && 
-                         ((((rd_ex == rs1_id) || (rd_ex == rs2_id)) && !(is_JAL|is_JALR))|((rd_ex == rs1_id)&&is_JALR));  // JALR 仅依赖 rs1
-
-  // 综合 Stall 和 Flush 信号
-  assign stall = load_use | branch_hazard;
-
-  // 只有发生实际跳转时，才清空 IF/ID 阶段的指令（避免误杀正常取指）
-  assign flush_if_id = pc_sel;
-
-  // 发生 Load-Use/Branch 冒险需要插入气泡，或者发生跳转时，清空 ID/EX 寄存器
-  assign flush_id_ex = load_use | branch_hazard | pc_sel;
-
-endmodule
- */
-
 `include "../include/defines.vh"
-
+// 检测 Load-Use 冲突： load(或流水化乘法)与 ID 阶段指令的源寄存器
+// 重叠时，停顿前端、向 EX1 插入气泡，直到数据可转发为止
+// store-buffer / L0 提前查表等快速路径命中的 load 数据提前就绪，相应少停或不停
+// 跳转改向的冲刷由顶层误预测信号统一驱动,本模块只管停顿,不管冲刷
 module hazard_unit (
-    input  wire [31:0] instr_id,     // ID 级指令
-    input  wire [31:0] instr_ex,     // EX 级指令
-    input  wire        mem_re_ex,    // EX 级 Load 标志（mem_read_enable）
-    input  wire        pc_sel,       // 来自 EX 阶段的最终跳转决策信号
-    output wire        stall,        // =1: 冻结 PC 和 IF/ID 寄存器
-    output wire        flush_if_id,  // =1: 清空 IF/ID 寄存器
-    output wire        flush_id_ex,  // =1: 清空 ID/EX 寄存器
-    input  wire        reg_we_ex     // EX 级写使能
+    // ID阶段——后续指令（被检测是否依赖in-flight load）
+    input  wire [ 4:0] rs1_id,          // ID阶段rs1地址
+    input  wire [ 4:0] rs2_id,          // ID阶段rs2地址
+    input  wire        rs1_en,          // ID指令是否真正使用rs1
+    input  wire        rs2_en,          // ID指令是否真正使用rs2
+
+    // EX1阶段——load在此阶段，数据3拍后到WB
+    input  wire [ 4:0] e1_rd_addr,
+    input  wire        e1_mem_re,       // EX1是否为load指令
+    input  wire        e1_is_mul,       // 流水化乘法,结果就绪时机与 load 同形(两级后才可转发)
+    input  wire        d1_hit,       // EX1 的 load 已提前查缓冲命中(数据下拍即可转发)→不停
+
+    // EX2阶段——load在此阶段，数据2拍后到WB
+    input  wire [ 4:0] e2_rd_addr,
+    input  wire        e2_mem_re,
+    input  wire        e2_ld_ok,       // EX2 的 load 数据下拍在 MEM1 就能转发(缓冲命中/直传/投机读),不必停顿
+    input  wire        e2_is_pmul,      // 流水化乘法在 EX2
+
+    // MEM1阶段——load在此阶段，dram_driver寄存器使数据延迟1拍
+    input  wire [ 4:0] m1_rd_addr,
+    input  wire        m1_mem_re,
+    input  wire        dram_stall,      // DRAM停顿时数据未到WB，仍需暂停
+
+    output wire        stall            // 停顿IF/ID（冻结PC和IF/ID寄存器）
 );
-  // 1. 字段提取
-  wire [4:0] rs1_id = instr_id[19:15];
-  wire [4:0] rs2_id = instr_id[24:20];
-  wire [4:0] rd_ex = instr_ex[11:7];
 
-  // 2. Load-Use 冒险检测
-  // 如果 EX 阶段是 Load 指令，且其目的寄存器 rd 是 ID 阶段指令的源寄存器
-  // 这是唯一需要 Stall（暂停）的情况。
-  wire load_use = mem_re_ex && (rd_ex != 5'd0) 
-                  && ((rd_ex == rs1_id) || (rd_ex == rs2_id));
+    // Load-Use:只对真正使用 rs1/rs2 的指令检查对应源寄存器(乘法按 load 同形规则参与;提前命中的免停)
+    wire e1_lat_op = (e1_mem_re && !d1_hit) || e1_is_mul;
+    wire rs1_match_ex1  = rs1_en && e1_lat_op && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs1_id);
+    wire rs2_match_ex1  = rs2_en && e1_lat_op && (e1_rd_addr != 5'd0) && (e1_rd_addr == rs2_id);
+    wire load_use_ex1   = rs1_match_ex1 || rs2_match_ex1;
 
-  // 3. 分支数据冒险（注意！）
-  // 由于 branch_comp 移到了 EX 阶段，它可以直接利用 EX 阶段的前递逻辑
-  // 就像 ADD 指令一样。因此，不再需要专门的 branch_hazard 暂停逻辑。
-  // 分支指令会在进入 EX 阶段时，通过前递拿到最新的 rs1 和 rs2 值进行比较。
+    wire e2_lat_op = (e2_mem_re && !e2_ld_ok) || e2_is_pmul;   // 数据下一拍就有的不用停,从MEM1那排寄存器转发即可
+    wire rs1_match_ex2  = rs1_en && e2_lat_op && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs1_id);
+    wire rs2_match_ex2  = rs2_en && e2_lat_op && (e2_rd_addr != 5'd0) && (e2_rd_addr == rs2_id);
+    wire load_use_ex2   = rs1_match_ex2 || rs2_match_ex2;
 
-  // --- 信号综合 ---
+    // 慢路径load(没赶上提前读,dram_stall亮):它到MEM1才发地址,数据还差2拍才能转发
 
-  // 只有 Load-Use 冲突时需要暂停
-  assign stall = load_use;
+    wire rs1_match_m1  = rs1_en && m1_mem_re && dram_stall && (m1_rd_addr != 5'd0) && (m1_rd_addr == rs1_id);
+    wire rs2_match_m1  = rs2_en && m1_mem_re && dram_stall && (m1_rd_addr != 5'd0) && (m1_rd_addr == rs2_id);
+    wire load_use_mem1 = rs1_match_m1 || rs2_match_m1;
 
-  // 当 EX 阶段决定跳转时（pc_sel=1），冲刷掉已经进入流水线的后两条错误指令
-  assign flush_if_id = pc_sel;
+    wire load_use = load_use_ex1 || load_use_ex2 || load_use_mem1;
 
-  // ID/EX 寄存器在两种情况下需要清零（插入气泡）：
-  // 1. 发生 Load-Use 冲突，需要停一拍。
-  // 2. 发生跳转，需要冲刷掉 ID 段的指令。
-  assign flush_id_ex = load_use | pc_sel;
+    // 停顿归因(按来源拆;再分 load/mul)
+    wire e1_ld_only  = e1_mem_re && !d1_hit;
+    wire e1_match_any = rs1_match_ex1 || rs2_match_ex1;
+    wire e2_match_any = rs1_match_ex2 || rs2_match_ex2;
+
+    // 停顿前端load-use时冻结IF/ID，防止依赖指令进入EX1
+    assign stall = load_use;
 
 endmodule

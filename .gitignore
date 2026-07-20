@@ -1,2 +1,33 @@
-.gitkeep为占位文件
+# 保留空目录占位文件
+!.gitkeep
+
+# 本地编辑器 / 工具配置，不上传
+.vscode/
+.claude/
 .workbuddy/
+
+# ModelSim / Questa 自动生成的仿真产物，不上传
+sim/programs/work/
+sim/programs/transcript
+sim/programs/vsim_stacktrace.vstf
+sim/programs/*.wlf
+sim/programs/*.vcd
+sim/programs/*.log
+sim/programs/backup/
+
+# CoreMark 编译中间产物，不上传
+tests/coremark/build/**/*.o
+tests/coremark/build/*.elf
+tests/coremark/build/*.map
+tests/coremark/build/*.dis
+tests/coremark/build/*.bin
+
+# CoreMark 仿真镜像：保留上传，也可以重新make直接跑仿真
+!tests/coremark/build/imem.hex
+!tests/coremark/build/dmem.hex
+
+# 常见临时文件
+*.tmp
+*.bak
+*.swp
+*~
