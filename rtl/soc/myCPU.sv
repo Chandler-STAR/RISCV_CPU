@@ -46,6 +46,9 @@ module myCPU (
   wire        e2_sb_range;          // 前向声明:EX2 地址落在 DRAM 区间
   wire        e2_spec_rd_hit;            // 前向声明:投机读命中(EX1 用预测地址发的读)
   reg         m1_st2ld_fwd;             // 前向声明:直传的 load 进入 MEM1
+`ifdef SUBWORD_FAST
+  reg         e2_d1_ld;                 // 前向声明:d1命中随载荷进EX2(已格式化数据接力进MEM1腿)
+`endif
   wire [31:0] ras_top_o;            // 前向声明:返回地址栈栈顶,ret指令的预测跳转目标
   wire [31:0] pmul_out;                // 前向声明:流水乘结果,MEM1拍出来
   wire        e2_is_pmul, m1_is_pmul;   // 前向声明:流水乘标志位(EX1段在pmul例化之前引用)
@@ -561,19 +564,27 @@ module myCPU (
 `endif
 
   reg [31:0] mem1_fwd_reg;
-  wire [31:0] mem1_fwd_pre = e2_sb_hit ? sb_ld_data :
+  wire [31:0] mem1_fwd_pre =
+`ifdef SUBWORD_FAST
+                  // d1命中接力放最高优先:已格式化数据寄存器→寄存器,零时序压力。
+                  // 正确性由d1捕获拍的新鲜度守卫背书(在途同址store当时就判了miss)。
+                  e2_d1_ld ? d1_data_reg :
+`endif
+                  e2_sb_hit ? sb_ld_data :
                   e2_st2ld_fwd  ? m1_rs2 :
                   e2_spec_rd_hit ? perip_rdram :          // 投机读:数据这一拍正从 DRAM 读口到达,直接捕获
                   (e2_wb_sel == `WB_PC4) ? e2_pc4 : e2_alu_out;
   always @(posedge clk) begin
     if (rst) mem1_fwd_reg <= 32'h0;
     else if (!stall_back)
-`ifdef SUBWORD_FAST
-      // 子字load在捕获点就完成车道提取+扩展,转发腿和写回拿到的都是最终值;
-      // 车道取真实地址e2_alu_out[1:0]。只有load走格式化,别的指令原样过。
-      mem1_fwd_reg <= e2_mem_re ? ld_fmt(mem1_fwd_pre, e2_mem_width, e2_mem_sign, e2_alu_out[1:0])
+`ifdef SUBWORD_SPEC
+      // 全功能版:子字load在捕获点完成车道提取+扩展(车道取真实地址e2_alu_out[1:0])。
+      // 代价:格式化两级叠在douta之后,关键路径+0.25ns;时序敏感时关SUBWORD_SPEC走d1-only。
+      // d1接力拍跳过fmt:d1_data_reg已格式化,二次提取会取错车道。
+      mem1_fwd_reg <= (e2_mem_re && !e2_d1_ld) ? ld_fmt(mem1_fwd_pre, e2_mem_width, e2_mem_sign, e2_alu_out[1:0])
                                 : mem1_fwd_pre;
 `else
+      // d1-only/旧行为:这条腿只装word数据,原样捕获,douta路径保持老剖面
       mem1_fwd_reg <= mem1_fwd_pre;
 `endif
   end
@@ -848,7 +859,17 @@ module myCPU (
 
   // ---- 投机读:整字load的地址在ID预测好,EX1就发读口,数据EX2到,后续指令零等待 ----
   // 四种情况不发(让给普通路径,只慢不错):EX2的load在用读口/store要写同地址/读口被占/冻结
-  wire spec_rd_issue = spec_addr_valid                            // 地址已在译码级预算好并落寄存器,类型/范围也已验过
+`ifdef SUBWORD_FAST
+`ifndef SUBWORD_SPEC
+  // d1-only配置:子字load不发投机读(地址预算/车道/查表照旧),douta路径退回老剖面
+  wire spec_w_ok = (e1_mem_width == `MEM_WORD);
+`else
+  wire spec_w_ok = 1'b1;                       // 全功能:子字也发投机读
+`endif
+`else
+  wire spec_w_ok = 1'b1;                       // 旧行为:spec_addr_valid本身已是word-only
+`endif
+  wire spec_rd_issue = spec_addr_valid && spec_w_ok               // 地址已在译码级预算好并落寄存器,类型/范围也已验过
                && !(e2_mem_re && !e2_spec_rd_hit)          // EX2的load占着读口就让 —— 除非它自己是投机读命中(不占口),连环load可都走投机
                && !e2_mem_we
                && !(m1_mem_we && dram_range)          // MEM1 store 本拍提交=同边沿写读碰撞(READ_FIRST 读旧),保守挡
@@ -1013,7 +1034,12 @@ module myCPU (
       .st_mask (sb_st_mask),
       .st_waddr(m1_alu_out[17:2]),
       .st_wdata(sb_st_wdata),
+`ifdef SUBWORD_SPEC
       .ld_en   (e2_mem_re && e2_sb_range),
+`else
+      // d1-only:EX2口只查word —— 子字命中数据不经格式化,不能混进转发腿
+      .ld_en   (e2_mem_re && (e2_mem_width == `MEM_WORD) && e2_sb_range),
+`endif
       .ld_need (sb_ld_need),
 `else
       .st_word (m1_mem_width == `MEM_WORD),
@@ -1077,6 +1103,18 @@ module myCPU (
 `endif
   end
 
+`ifdef SUBWORD_FAST
+  // d1命中旗标随载荷推进到EX2:距离2的消费者在ID级凭它放行(e2_ld_ready),
+  // 下拍从MEM1腿取接力进mem1_fwd_reg的d1_data_reg。冲刷语义与e2_spec_rd同。
+  always @(posedge clk) begin
+    if (rst) e2_d1_ld <= 1'b0;
+    else if (!stall_back) begin
+      if (predict_wrong | trap_redirect | mdu_stall) e2_d1_ld <= 1'b0;
+      else e2_d1_ld <= d1_hit;
+    end
+  end
+`endif
+
   assign e2_sb_hit = sb_ld_hit;
 
   // store→load同地址直传:sw X; lw X 紧挨着时(store在MEM1、load在EX2),store的写数据
@@ -1084,6 +1122,12 @@ module myCPU (
   assign e2_st2ld_fwd = st_conflict && e2_mem_re && e2_sb_range && dram_range &&
                     (e2_mem_width == `MEM_WORD) && (m1_mem_width == `MEM_WORD);
   wire e2_fast_hit = e2_sb_hit || e2_st2ld_fwd;
+`ifdef SUBWORD_FAST
+  // EX2载荷"下拍MEM1腿可转发"总闸:缓冲命中/直传/投机读/d1接力,四路任一
+  wire e2_ld_ready = e2_fast_hit || e2_spec_rd_hit || e2_d1_ld;
+`else
+  wire e2_ld_ready = e2_fast_hit || e2_spec_rd_hit;
+`endif
 
   always @(posedge clk) begin
     if (rst) m1_st2ld_fwd <= 1'b0;
@@ -1141,7 +1185,7 @@ module myCPU (
       .e2_is_pmul(e1_is_mul),                                                    // EX1 的乘法下拍在 EX2 结果还没好
       .e2_load_ok(d1_hit),                                                    // EX1 查缓冲命中的 load,下拍在 EX2 即可转发
       .m1_rd_addr(e2_rd_addr),  .m1_reg_we(e2_reg_we),  .m1_wb_sel(e2_wb_sel),   // m1口接现在EX2的:下一拍它在MEM1
-      .m1_load_ok(e2_fast_hit || e2_spec_rd_hit),                                     // 缓冲命中/直传/提前读的 load,下拍在 MEM1 即可转发
+      .m1_load_ok(e2_ld_ready),                                     // 缓冲命中/直传/提前读/d1接力的 load,下拍在 MEM1 即可转发
       .m1_is_pmul(e2_is_pmul),                    // EX2的乘法下一拍结果还没好,不能转发
       .w_rd_addr(m1_rd_addr),  .w_reg_we(m1_reg_we),  .w_wb_sel(m1_wb_sel),   // w口接现在MEM1的:下一拍它在WB,load数据也已就绪
       .fwd_a(fwd_a_pre),
@@ -1159,7 +1203,7 @@ module myCPU (
       .d1_hit(d1_hit),
       .e2_rd_addr(e2_rd_addr),
       .e2_mem_re(e2_mem_re),
-      .e2_ld_ok(e2_fast_hit || e2_spec_rd_hit),
+      .e2_ld_ok(e2_ld_ready),
       .e2_is_pmul(e2_is_pmul),
       .m1_rd_addr(m1_rd_addr),
       .m1_mem_re(m1_mem_re),

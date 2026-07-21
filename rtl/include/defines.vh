@@ -14,6 +14,11 @@
 //    sb/sh 也登记
 `define SUBWORD_FAST//注释掉本行关闭
 
+// ---- 子开关:子字投机读
+// 收益~0.15亿拍,但格式化两级叠在BRAM读出选择树(全局最差路径)上,
+// 要全功能取消注释。
+// `define SUBWORD_SPEC
+
 // ===== ALU 操作码（5 bit）=====
 `define ALU_ADD    5'd0   // 加法（ADD/ADDI/Load/Store地址/JAL/JALR）
 `define ALU_SUB    5'd1   // 减法（SUB）
