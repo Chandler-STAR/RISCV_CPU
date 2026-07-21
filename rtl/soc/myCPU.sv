@@ -51,6 +51,9 @@ module myCPU (
   wire        e2_is_pmul, m1_is_pmul;   // 前向声明:流水乘标志位(EX1段在pmul例化之前引用)
   reg         spec_addr_valid;             // 前向声明:load地址已在ID预测好,EX1可以发投机读
   reg  [15:0] spec_ld_waddr;
+`ifdef SUBWORD_FAST
+  reg  [1:0]  spec_ld_lane;    // 前向声明:预测地址字内偏移(子字车道,断言/查表在定义处之前引用)
+`endif
   reg  [31:0] d1_data_reg;             // 前向声明:EX1提前查表命中的load数据(转发选择器在定义处之前引用)
 
   // 冲突检测与预测信号
@@ -541,14 +544,38 @@ module myCPU (
 
   // MEM1预选转发寄存器:指令从EX2进MEM1时,把"后续指令要转发的值"五选一先存好
   // (缓冲命中/直传/投机读/pc+4/ALU结果),下一拍EX1直接取,零组合逻辑。
+`ifdef SUBWORD_FAST
+  // 子字load的车道提取+扩展(word原样直通)。两处捕获点(mem1_fwd_reg/d1_data_reg)共用;
+  // 宽度/符号/车道选择全是寄存器输出,数据路径只多约两级选择。
+  function [31:0] ld_fmt(input [31:0] w, input [1:0] width, input sgn, input [1:0] lane);
+    reg [7:0]  fb;
+    reg [15:0] fh;
+    begin
+      fb = (lane == 2'd0) ? w[7:0]   : (lane == 2'd1) ? w[15:8] :
+           (lane == 2'd2) ? w[23:16] : w[31:24];
+      fh = lane[1] ? w[31:16] : w[15:0];
+      ld_fmt = (width == `MEM_BYTE) ? (sgn ? {{24{fb[7]}},  fb} : {24'd0, fb}) :
+               (width == `MEM_HALF) ? (sgn ? {{16{fh[15]}}, fh} : {16'd0, fh}) : w;
+    end
+  endfunction
+`endif
+
   reg [31:0] mem1_fwd_reg;
-  always @(posedge clk) begin
-    if (rst) mem1_fwd_reg <= 32'h0;
-    else if (!stall_back)
-      mem1_fwd_reg <= e2_sb_hit ? sb_ld_data :
+  wire [31:0] mem1_fwd_pre = e2_sb_hit ? sb_ld_data :
                   e2_st2ld_fwd  ? m1_rs2 :
                   e2_spec_rd_hit ? perip_rdram :          // 投机读:数据这一拍正从 DRAM 读口到达,直接捕获
                   (e2_wb_sel == `WB_PC4) ? e2_pc4 : e2_alu_out;
+  always @(posedge clk) begin
+    if (rst) mem1_fwd_reg <= 32'h0;
+    else if (!stall_back)
+`ifdef SUBWORD_FAST
+      // 子字load在捕获点就完成车道提取+扩展,转发腿和写回拿到的都是最终值;
+      // 车道取真实地址e2_alu_out[1:0]。只有load走格式化,别的指令原样过。
+      mem1_fwd_reg <= e2_mem_re ? ld_fmt(mem1_fwd_pre, e2_mem_width, e2_mem_sign, e2_alu_out[1:0])
+                                : mem1_fwd_pre;
+`else
+      mem1_fwd_reg <= mem1_fwd_pre;
+`endif
   end
 
   // (写回级的值已在w_*流水线寄存器中,多路选择器直接取用,无需再设一路)
@@ -873,10 +900,17 @@ module myCPU (
   // 投机读的仿真自检(硬件不校验,地址算错=静默拿错数据);只存在于仿真,综合自动剪除
   // synthesis translate_off
   reg [15:0] chk_e2_waddr, chk_m1_waddr;   // 预算地址随 load 走到 MEM1
+`ifdef SUBWORD_FAST
+  reg [1:0]  chk_e2_lane,  chk_m1_lane;    // 预测车道随 load 走到 MEM1(A1b 用)
+`endif
   always @(posedge clk) begin
     if (!stall_back) begin
       chk_e2_waddr <= spec_ld_waddr;
       chk_m1_waddr <= chk_e2_waddr;
+`ifdef SUBWORD_FAST
+      chk_e2_lane  <= spec_ld_lane;
+      chk_m1_lane  <= chk_e2_lane;
+`endif
     end
   end
   always @(posedge clk) begin
@@ -887,6 +921,14 @@ module myCPU (
                  $time, chk_m1_waddr, m1_alu_out[17:2], m1_alu_out);
         $fatal(1);
       end
+`ifdef SUBWORD_FAST
+      // A1b:预测车道 == 真实地址低 2 位(d1 捕获用预测车道做提取,靠这条兜底)
+      if (chk_m1_lane !== m1_alu_out[1:0]) begin
+        $display("[ASSERT-A1b FAIL] t=%0t 投机读车道失配:预测=%b 真实=%b (m1_alu_out=%08x)",
+                 $time, chk_m1_lane, m1_alu_out[1:0], m1_alu_out);
+        $fatal(1);
+      end
+`endif
       // A2:投机读命中 ⇒ 该 load 的真实地址在 DRAM 窗口内
       if (m1_alu_out[31:18] !== 14'h2004) begin
         $display("[ASSERT-A2 FAIL] t=%0t 投机读的 load 真实地址不在 DRAM 窗口: %08x",
@@ -913,19 +955,30 @@ module myCPU (
                        (fwd_a_pre == `FWD_WB_ALU)  ? m1_alu_out : rs1_rf_final;
   // 两个省时序的招:范围检查直接看基址(不等加法结果,两件事并行做);
   // 加法只算低18位(反正只要字地址)。基址在存储器边界2KB内的都保守放弃,防止加完越界
+`ifdef SUBWORD_FAST
+  // 子字load同样预算地址(读口永远按字对齐发读,车道另存spec_ld_lane)
+  wire        spec_ld_cand = mem_re_d && spec_base_ok;
+`else
   wire        spec_ld_cand = mem_re_d && (mem_width_d == `MEM_WORD) && spec_base_ok;
+`endif
   wire [17:0] spec_addr18  = spec_base[17:0] + imm[17:0];
   wire        spec_base_in_dram = (spec_base[31:18] == 14'h2004)
                          && (spec_base[17:11] != 7'h7F) && (spec_base[17:11] != 7'h00);
-  // (spec_addr_valid/spec_ld_waddr 顶部前向声明;范围检查已并入 spec_addr_valid)
+  // (spec_addr_valid/spec_ld_waddr/spec_ld_lane 顶部前向声明;范围检查已并入 spec_addr_valid)
   always @(posedge clk) begin
     if (rst) begin
       spec_addr_valid <= 1'b0; spec_ld_waddr <= 16'h0;
+`ifdef SUBWORD_FAST
+      spec_ld_lane <= 2'b0;
+`endif
     end else if (flush_id_ex1) begin        // 与 u_id_ex1_reg 同语义:flush 优先于 stall
       spec_addr_valid <= 1'b0;
     end else if (!stall) begin
       spec_addr_valid   <= spec_ld_cand && spec_base_in_dram;   // 范围与加法并行预验(见上)
       spec_ld_waddr  <= spec_addr18[17:2];
+`ifdef SUBWORD_FAST
+      spec_ld_lane   <= spec_addr18[1:0];
+`endif
     end
   end
   wire        d1_sb_hit;
@@ -936,18 +989,45 @@ module myCPU (
   // sb_ld_data / e2_sb_hit 已在顶部前向声明(EX1 段 mem1_fwd_reg 引用)
   // 只放4项就够:比较逻辑串在停顿判断的路径上,项越少越快;
   // 程序热点就内层循环那三四个栈槽,4项和8项命中率几乎一样。
+`ifdef SUBWORD_FAST
+  // 子字store车道对齐:数据按道复制、掩码标写到的字节(与BRAM字节使能写同语义,
+  // 缓冲字节与存储器逐字节一致)。load侧生成"需要哪些字节"的需求掩码。
+  wire [3:0]  sb_st_mask  = (m1_mem_width == `MEM_WORD) ? 4'b1111 :
+                            (m1_mem_width == `MEM_HALF) ? (m1_alu_out[1] ? 4'b1100 : 4'b0011) :
+                                                          (4'b0001 << m1_alu_out[1:0]);
+  wire [31:0] sb_st_wdata = (m1_mem_width == `MEM_WORD) ? m1_rs2 :
+                            (m1_mem_width == `MEM_HALF) ? {2{m1_rs2[15:0]}} :
+                                                          {4{m1_rs2[7:0]}};
+  wire [3:0]  sb_ld_need  = (e2_mem_width == `MEM_WORD) ? 4'b1111 :
+                            (e2_mem_width == `MEM_HALF) ? (e2_alu_out[1] ? 4'b1100 : 4'b0011) :
+                                                          (4'b0001 << e2_alu_out[1:0]);
+  wire [3:0]  d1_ld_need  = (e1_mem_width == `MEM_WORD) ? 4'b1111 :
+                            (e1_mem_width == `MEM_HALF) ? (spec_ld_lane[1] ? 4'b1100 : 4'b0011) :
+                                                          (4'b0001 << spec_ld_lane);
+`endif
   store_buffer #(.N(4)) u_sb (
       .clk     (clk),
       .rst     (rst),
       .st_en   (m1_mem_we && dram_range),
+`ifdef SUBWORD_FAST
+      .st_mask (sb_st_mask),
+      .st_waddr(m1_alu_out[17:2]),
+      .st_wdata(sb_st_wdata),
+      .ld_en   (e2_mem_re && e2_sb_range),
+      .ld_need (sb_ld_need),
+`else
       .st_word (m1_mem_width == `MEM_WORD),
       .st_waddr(m1_alu_out[17:2]),
       .st_wdata(m1_rs2),
       .ld_en   (e2_mem_re && (e2_mem_width == `MEM_WORD) && e2_sb_range),
+`endif
       .ld_raddr(e2_alu_out[17:2]),
       .ld_hit  (sb_ld_hit),
       .ld_data (sb_ld_data),
       .ld2_raddr(spec_ld_waddr),
+`ifdef SUBWORD_FAST
+      .ld2_need(d1_ld_need),
+`endif
       .ld2_hit (d1_sb_hit),
       .ld2_data(d1_sb_data)
   );
@@ -987,7 +1067,14 @@ module myCPU (
 
   // 命中的数据存一拍:下一拍消费者到EX1,从选择器的EX2P那一路取用
   always @(posedge clk) begin
+`ifdef SUBWORD_FAST
+    // 子字load在此完成车道提取+扩展(缓冲/L0条目都是整字);
+    // 车道用译码级预测的spec_ld_lane,和真实地址的一致性由A1b断言逐次对账。
+    if (d1_hit && !stall_back) d1_data_reg <= ld_fmt(d1_sb_hit ? d1_sb_data : l0_data,
+                                                     e1_mem_width, e1_mem_sign, spec_ld_lane);
+`else
     if (d1_hit && !stall_back) d1_data_reg <= d1_sb_hit ? d1_sb_data : l0_data;
+`endif
   end
 
   assign e2_sb_hit = sb_ld_hit;

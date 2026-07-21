@@ -9,6 +9,11 @@
 `define FUSE_F2 1'b1   // F2 移位加融合单独开关,时序不利时置 0
 `endif
 
+// ---- 子字 load 快车道总开关 ----
+// 开:lb/lh/lbu/lhu 也走地址预算+投机读+EX1查表;store缓冲条目按字节掩码合并,
+//    sb/sh 也登记
+`define SUBWORD_FAST//注释掉本行关闭
+
 // ===== ALU 操作码（5 bit）=====
 `define ALU_ADD    5'd0   // 加法（ADD/ADDI/Load/Store地址/JAL/JALR）
 `define ALU_SUB    5'd1   // 减法（SUB）

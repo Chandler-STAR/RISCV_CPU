@@ -1,0 +1,239 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2010" height="1090" viewBox="0 0 2010 1090">
+<defs><marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="black"/></marker></defs>
+<rect width="2010" height="1090" fill="white"/>
+<g font-family="Times New Roman, SimSun, serif" fill="black">
+<text x="126" y="224" text-anchor="middle" font-size="17" font-weight="bold">IF</text>
+<text x="800" y="224" text-anchor="middle" font-size="17" font-weight="bold">ID</text>
+<text x="1150" y="224" text-anchor="middle" font-size="17" font-weight="bold">EX1</text>
+<text x="1435" y="224" text-anchor="middle" font-size="17" font-weight="bold">EX2</text>
+<text x="1720" y="224" text-anchor="middle" font-size="17" font-weight="bold">MEM1</text>
+<text x="1940" y="224" text-anchor="middle" font-size="17" font-weight="bold">WB</text>
+<rect x="648" y="240" width="13" height="660" fill="white" stroke="black" stroke-width="2.2"/>
+<rect x="958" y="240" width="13" height="660" fill="white" stroke="black" stroke-width="2.2"/>
+<rect x="1300" y="240" width="13" height="660" fill="white" stroke="black" stroke-width="2.2"/>
+<rect x="1570" y="240" width="13" height="660" fill="white" stroke="black" stroke-width="2.2"/>
+<rect x="1870" y="240" width="13" height="660" fill="white" stroke="black" stroke-width="2.2"/>
+<polygon points="34,440 74,459.8 74,530.2 34,550" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="54.0" y="500.0" text-anchor="middle" font-size="13" font-weight="bold">M U X</text>
+<rect x="108" y="430" width="52" height="130" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="134.0" y="500.0" text-anchor="middle" font-size="18" font-weight="bold">PC</text>
+<polygon points="500,100 500,128.8 515.4,140.0 500,151.2 500,180 570,159.2 570,120.8" fill="white" stroke="black" stroke-width="2.4"/>
+<text x="543.4" y="146.0" text-anchor="middle" font-size="17" font-weight="bold">+</text>
+<text x="447" y="163" text-anchor="end" font-size="14">8</text>
+<path d="M 455,158 L 491,158" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="500,158 491,154 491,162" fill="black"/>
+<rect x="196" y="400" width="170" height="170" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="281.0" y="479.0" text-anchor="middle" font-size="18" font-weight="bold">instruction</text>
+<text x="281.0" y="501.0" text-anchor="middle" font-size="18" font-weight="bold">memory ×2</text>
+<text x="203" y="454" font-size="13">addr_A</text>
+<text x="203" y="524" font-size="13">addr_B</text>
+<text x="359" y="454" text-anchor="end" font-size="13">inst_A</text>
+<text x="359" y="524" text-anchor="end" font-size="13">inst_B</text>
+<rect x="196" y="130" width="170" height="120" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="281.0" y="195.0" text-anchor="middle" font-size="18" font-weight="bold">BTB / RAS</text>
+<text x="203" y="194" font-size="13">pc</text>
+<text x="203" y="164" font-size="13">update</text>
+<rect x="430" y="380" width="150" height="200" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="505.0" y="474.0" text-anchor="middle" font-size="18" font-weight="bold">fetch</text>
+<text x="505.0" y="496.0" text-anchor="middle" font-size="18" font-weight="bold">queue</text>
+<text x="437" y="489" font-size="13">in ×2</text>
+<text x="573" y="444" text-anchor="end" font-size="13">head</text>
+<rect x="430" y="640" width="150" height="90" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="505.0" y="679.0" text-anchor="middle" font-size="18" font-weight="bold">fuse</text>
+<text x="505.0" y="701.0" text-anchor="middle" font-size="18" font-weight="bold">check</text>
+<path d="M 74,495 L 99,495" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="108,495 99,491 99,499" fill="black"/>
+<path d="M 160,495 L 176,495 L 176,450 L 187,450" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="196,450 187,446 187,454" fill="black"/>
+<circle cx="176" cy="495" r="3.4" fill="black"/>
+<path d="M 176,470 L 176,520 L 187,520" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="196,520 187,516 187,524" fill="black"/>
+<circle cx="176" cy="450" r="3.4" fill="black"/>
+<path d="M 176,450 L 176,124 L 491,124" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="500,124 491,120 491,128" fill="black"/>
+<circle cx="176" cy="190" r="3.4" fill="black"/>
+<path d="M 176,190 L 187,190" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="196,190 187,186 187,194" fill="black"/>
+<path d="M 570,140 L 592,140 L 592,48 L 16,48 L 16,465 L 25,465" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="34,465 25,461 25,469" fill="black"/>
+<path d="M 366,190 L 420,190 L 420,68 L 24,68 L 24,495 L 25,495" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="34,495 25,491 25,499" fill="black"/>
+<text x="596" y="132" text-anchor="start" font-size="13">pc+8</text>
+<text x="372" y="205" text-anchor="start" font-size="13">predict target</text>
+<path d="M 366,450 L 421,450" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="430,450 421,446 421,454" fill="black"/>
+<path d="M 366,520 L 421,520" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="430,520 421,516 421,524" fill="black"/>
+<path d="M 505,580 L 505,631" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="505,640 501,631 509,631" fill="black"/>
+<path d="M 580,685 L 614,685 L 614,530 L 639,530" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="648,530 639,526 639,534" fill="black"/>
+<path d="M 580,440 L 639,440" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="648,440 639,436 639,444" fill="black"/>
+<text x="590" y="430" text-anchor="start" font-size="13">instr</text>
+<rect x="710" y="255" width="130" height="105" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="775.0" y="301.5" text-anchor="middle" font-size="18" font-weight="bold">ctrl</text>
+<text x="775.0" y="323.5" text-anchor="middle" font-size="18" font-weight="bold">(decode)</text>
+<rect x="710" y="425" width="180" height="205" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="800.0" y="532.5" text-anchor="middle" font-size="18" font-weight="bold">registers</text>
+<text x="717" y="470" font-size="13">rs1</text>
+<text x="717" y="511" font-size="13">rs2</text>
+<text x="717" y="552" font-size="13">rd</text>
+<text x="717" y="593" font-size="13">W_data</text>
+<text x="883" y="497" text-anchor="end" font-size="13">read1</text>
+<text x="883" y="566" text-anchor="end" font-size="13">read2</text>
+<rect x="710" y="690" width="140" height="75" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="780.0" y="732.5" text-anchor="middle" font-size="18" font-weight="bold">imm_gen</text>
+<rect x="710" y="815" width="180" height="80" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="800.0" y="849.0" text-anchor="middle" font-size="16" font-weight="bold">forward /</text>
+<text x="800.0" y="871.0" text-anchor="middle" font-size="16" font-weight="bold">hazard unit</text>
+<path d="M 661,307 L 701,307" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,307 701,303 701,311" fill="black"/>
+<path d="M 840,307 L 949,307" fill="none" stroke="black" stroke-width="1.7" stroke-dasharray="7,5"/>
+<polygon points="958,307 949,303 949,311" fill="black"/>
+<text x="848" y="299" text-anchor="start" font-size="13">control</text>
+<circle cx="684" cy="307" r="3.4" fill="black"/>
+<path d="M 684,307 L 684,730 L 701,730" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,730 701,726 701,734" fill="black"/>
+<circle cx="684" cy="466" r="3.4" fill="black"/>
+<path d="M 684,466 L 701,466" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,466 701,462 701,470" fill="black"/>
+<circle cx="684" cy="507" r="3.4" fill="black"/>
+<path d="M 684,507 L 701,507" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,507 701,503 701,511" fill="black"/>
+<circle cx="684" cy="548" r="3.4" fill="black"/>
+<path d="M 684,548 L 701,548" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,548 701,544 701,552" fill="black"/>
+<path d="M 890,493 L 949,493" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="958,493 949,489 949,497" fill="black"/>
+<path d="M 890,562 L 949,562" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="958,562 949,558 949,566" fill="black"/>
+<path d="M 850,727 L 918,727 L 918,610 L 949,610" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="958,610 949,606 949,614" fill="black"/>
+<text x="922" y="604" text-anchor="start" font-size="13">imme</text>
+<path d="M 661,790 L 686,790 L 686,845 L 701,845" fill="none" stroke="black" stroke-width="1.7" stroke-dasharray="7,5"/>
+<polygon points="710,845 701,841 701,849" fill="black"/>
+<path d="M 890,845 L 930,845 L 930,790 L 949,790" fill="none" stroke="black" stroke-width="1.7" stroke-dasharray="7,5"/>
+<polygon points="958,790 949,786 949,794" fill="black"/>
+<text x="894" y="837" text-anchor="start" font-size="13">fwd / stall</text>
+<rect x="1030" y="255" width="150" height="70" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1105.0" y="295.0" text-anchor="middle" font-size="16" font-weight="bold">branch_comp</text>
+<polygon points="1030,420 1074,438.0 1074,502.0 1030,520" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1052.0" y="475.0" text-anchor="middle" font-size="13" font-weight="bold">M U X</text>
+<polygon points="1030,545 1074,563.0 1074,627.0 1030,645" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1052.0" y="600.0" text-anchor="middle" font-size="13" font-weight="bold">M U X</text>
+<polygon points="1140,430 1140,494.8 1164.2,520.0 1140,545.2 1140,610 1250,563.2 1250,476.8" fill="white" stroke="black" stroke-width="2.4"/>
+<text x="1208.2" y="526.0" text-anchor="middle" font-size="17" font-weight="bold">ALU</text>
+<rect x="1140" y="700" width="150" height="80" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1215.0" y="745.0" text-anchor="middle" font-size="16" font-weight="bold">pmul / mdu</text>
+<rect x="1140" y="820" width="150" height="70" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1215.0" y="860.0" text-anchor="middle" font-size="16" font-weight="bold">CSR / trap</text>
+<text x="1038" y="412" text-anchor="start" font-size="12">Alusrc</text>
+<path d="M 971,290 L 1021,290" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,290 1021,286 1021,294" fill="black"/>
+<path d="M 1180,290 L 1291,290" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1300,290 1291,286 1291,294" fill="black"/>
+<text x="1210" y="282" text-anchor="start" font-size="13">taken</text>
+<path d="M 971,493 L 1021,493" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,493 1021,489 1021,497" fill="black"/>
+<path d="M 971,562 L 1021,562" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,562 1021,558 1021,566" fill="black"/>
+<path d="M 971,610 L 1021,610" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,610 1021,606 1021,614" fill="black"/>
+<path d="M 1074,470 L 1131,470" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1140,470 1131,466 1131,474" fill="black"/>
+<path d="M 1074,597 L 1108,597 L 1108,568 L 1131,568" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1140,568 1131,564 1131,572" fill="black"/>
+<circle cx="1110" cy="470" r="3.4" fill="black"/>
+<path d="M 1110,470 L 1110,730 L 1131,730" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1140,730 1131,726 1131,734" fill="black"/>
+<circle cx="1096" cy="597" r="3.4" fill="black"/>
+<path d="M 1096,597 L 1096,760 L 1131,760" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1140,760 1131,756 1131,764" fill="black"/>
+<path d="M 1250,520 L 1291,520" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1300,520 1291,516 1291,524" fill="black"/>
+<text x="1254" y="512" text-anchor="start" font-size="13">alu_result</text>
+<path d="M 1290,740 L 1300,740" fill="none" stroke="black" stroke-width="1.7"/>
+<path d="M 971,790 L 994,790 L 994,855 L 1131,855" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1140,855 1131,851 1131,859" fill="black"/>
+<path d="M 1290,855 L 1300,855" fill="none" stroke="black" stroke-width="1.7"/>
+<rect x="1360" y="255" width="170" height="105" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1445.0" y="301.5" text-anchor="middle" font-size="18" font-weight="bold">branch</text>
+<text x="1445.0" y="323.5" text-anchor="middle" font-size="18" font-weight="bold">resolve</text>
+<path d="M 1313,300 L 1351,300" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1360,300 1351,296 1351,304" fill="black"/>
+<path d="M 1530,307 L 1548,307 L 1548,28 L 8,28 L 8,525 L 25,525" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="34,525 25,521 25,529" fill="black"/>
+<text x="1440" y="20" text-anchor="start" font-size="13">predict_wrong / correct target</text>
+<path d="M 1313,520 L 1561,520" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1570,520 1561,516 1561,524" fill="black"/>
+<rect x="1360" y="595" width="170" height="75" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1445.0" y="626.5" text-anchor="middle" font-size="14" font-weight="bold">mem1_fwd_reg</text>
+<text x="1445.0" y="648.5" text-anchor="middle" font-size="14" font-weight="bold">5:1 preselect</text>
+<path d="M 1313,633 L 1351,633" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1360,633 1351,629 1351,637" fill="black"/>
+<text x="1318" y="625" text-anchor="start" font-size="12">5路</text>
+<path d="M 1530,633 L 1561,633" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1570,633 1561,629 1561,637" fill="black"/>
+<path d="M 1530,285 L 1556,285 L 1556,88 L 184,88 L 184,160 L 187,160" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="196,160 187,156 187,164" fill="black"/>
+<text x="700" y="82" text-anchor="start" font-size="13">BTB / RAS update (real outcome)</text>
+<path d="M 1313,855 L 1344,855 L 1344,335 L 1351,335" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1360,335 1351,331 1351,339" fill="black"/>
+<text x="1338" y="372" text-anchor="end" font-size="12">trap</text>
+<rect x="1640" y="395" width="180" height="190" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1730.0" y="484.0" text-anchor="middle" font-size="18" font-weight="bold">data</text>
+<text x="1730.0" y="506.0" text-anchor="middle" font-size="18" font-weight="bold">memory</text>
+<text x="1647" y="462" font-size="13">addr</text>
+<text x="1647" y="525" font-size="13">W_data</text>
+<text x="1813" y="494" text-anchor="end" font-size="13">R_data</text>
+<rect x="1640" y="640" width="160" height="70" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1720.0" y="680.0" text-anchor="middle" font-size="15" font-weight="bold">store_buffer</text>
+<rect x="1640" y="750" width="160" height="70" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1720.0" y="790.0" text-anchor="middle" font-size="15" font-weight="bold">L0 cache</text>
+<path d="M 1583,458 L 1631,458" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,458 1631,454 1631,462" fill="black"/>
+<text x="1586" y="450" text-anchor="start" font-size="11">addr(早读/正常)</text>
+<path d="M 1583,521 L 1631,521" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,521 1631,517 1631,525" fill="black"/>
+<path d="M 1583,690 L 1631,690" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,690 1631,686 1631,694" fill="black"/>
+<text x="1588" y="682" text-anchor="start" font-size="13">st data</text>
+<circle cx="1610" cy="690" r="3.4" fill="black"/>
+<path d="M 1610,690 L 1610,795 L 1631,795" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,795 1631,791 1631,799" fill="black"/>
+<path d="M 1820,490 L 1861,490" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1870,490 1861,486 1861,494" fill="black"/>
+<path d="M 1800,668 L 1861,668" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1870,668 1861,664 1861,672" fill="black"/>
+<text x="1806" y="660" text-anchor="start" font-size="13">hit</text>
+<path d="M 1800,778 L 1861,778" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1870,778 1861,774 1861,782" fill="black"/>
+<text x="1806" y="770" text-anchor="start" font-size="13">hit</text>
+<path d="M 971,866 L 984,866 L 984,1005 L 1620,1005 L 1620,665 L 1631,665" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,665 1631,661 1631,669" fill="black"/>
+<circle cx="1620" cy="768" r="3.4" fill="black"/>
+<path d="M 1620,768 L 1631,768" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1640,768 1631,764 1631,772" fill="black"/>
+<text x="1160" y="997" text-anchor="start" font-size="13">predicted load addr (ID compute, EX1 query)</text>
+<polygon points="1920,430 1964,451.6 1964,528.4 1920,550" fill="white" stroke="black" stroke-width="2.2"/>
+<text x="1942.0" y="495.0" text-anchor="middle" font-size="13" font-weight="bold">M U X</text>
+<path d="M 1883,470 L 1911,470" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1920,470 1911,466 1911,474" fill="black"/>
+<path d="M 1883,510 L 1911,510" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1920,510 1911,506 1911,514" fill="black"/>
+<text x="1916" y="420" text-anchor="start" font-size="12">Memtoreg</text>
+<path d="M 1964,490 L 1984,490 L 1984,1048 L 672,1048 L 672,589 L 701,589" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="710,589 701,585 701,593" fill="black"/>
+<text x="1220" y="1040" text-anchor="start" font-size="13">wb_data</text>
+<path d="M 1313,640 L 1332,640 L 1332,942 L 1012,942 L 1012,449 L 1021,449" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,449 1021,445 1021,453" fill="black"/>
+<text x="1338" y="935" text-anchor="start" font-size="13">EX2 / MEM1 / WB forward</text>
+<path d="M 1583,620 L 1600,620 L 1600,968 L 1000,968 L 1000,633 L 1021,633" fill="none" stroke="black" stroke-width="1.7"/>
+<polygon points="1030,633 1021,629 1021,637" fill="black"/>
+<text x="655" y="918" text-anchor="middle" font-size="14" font-weight="bold">IF/ID</text>
+<text x="943" y="918" text-anchor="middle" font-size="14" font-weight="bold">ID/EX1</text>
+<text x="1283" y="918" text-anchor="middle" font-size="14" font-weight="bold">EX1/EX2</text>
+<text x="1545" y="918" text-anchor="middle" font-size="14" font-weight="bold">EX2/MEM1</text>
+<text x="1877" y="918" text-anchor="middle" font-size="14" font-weight="bold">MEM1/WB</text>
+</g></svg>
